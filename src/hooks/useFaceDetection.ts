@@ -138,6 +138,7 @@ export const useFaceDetection = () => {
       const audioSource = person.soundData || person.soundUrl;
       if (audioSource) {
         const audio = new Audio(audioSource);
+        audio.loop = false;
         audio.play().catch(console.error);
       }
     };
@@ -182,11 +183,11 @@ export const useFaceDetection = () => {
             box: { x: box.x, y: box.y, width: box.width, height: box.height }
           };
 
-          // Play sound with cooldown (3 seconds)
+          // Play sound with cooldown (30 seconds to avoid repetition)
           if (bestMatch) {
             const now = Date.now();
             const lastPlayed = lastPlayedRef.current.get(bestMatch.person.id) || 0;
-            if (now - lastPlayed > 3000) {
+            if (now - lastPlayed > 30000) {
               playPersonSound(bestMatch.person);
               lastPlayedRef.current.set(bestMatch.person.id, now);
             }
@@ -204,7 +205,7 @@ export const useFaceDetection = () => {
               
               if (bestMatch) {
                 ctx.fillStyle = '#00ff88';
-                ctx.font = '16px Orbitron';
+                ctx.font = '900 18px Barlow';
                 ctx.fillText(
                   `${bestMatch.person.name} (${result.confidence.toFixed(0)}%)`,
                   box.x,
