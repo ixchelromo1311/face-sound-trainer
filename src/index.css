@@ -6,50 +6,50 @@
 
 @layer base {
   :root {
-    --background: 220 20% 6%;
-    --foreground: 200 100% 95%;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 95%;
 
-    --card: 220 20% 10%;
-    --card-foreground: 200 100% 95%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 220 20% 8%;
-    --popover-foreground: 200 100% 95%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 185 100% 50%;
-    --primary-foreground: 220 20% 6%;
+    --primary: 0 85% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 20% 15%;
-    --secondary-foreground: 200 100% 95%;
+    --secondary: 0 15% 12%;
+    --secondary-foreground: 0 0% 95%;
 
-    --muted: 220 15% 18%;
-    --muted-foreground: 200 20% 60%;
+    --muted: 0 10% 15%;
+    --muted-foreground: 0 10% 55%;
 
-    --accent: 280 100% 65%;
-    --accent-foreground: 200 100% 95%;
+    --accent: 350 90% 50%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 85% 55%;
-    --destructive-foreground: 200 100% 95%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 185 50% 25%;
-    --input: 220 20% 15%;
-    --ring: 185 100% 50%;
+    --border: 0 40% 20%;
+    --input: 0 15% 12%;
+    --ring: 0 85% 55%;
 
     --radius: 0.75rem;
 
-    --glow-primary: 0 0 20px hsl(185 100% 50% / 0.5);
-    --glow-accent: 0 0 20px hsl(280 100% 65% / 0.5);
+    --glow-primary: 0 0 20px hsl(0 85% 55% / 0.5);
+    --glow-accent: 0 0 20px hsl(350 90% 50% / 0.5);
     --glow-success: 0 0 20px hsl(150 100% 45% / 0.5);
 
     --success: 150 100% 45%;
-    --success-foreground: 220 20% 6%;
+    --success-foreground: 0 0% 4%;
 
     --warning: 45 100% 50%;
-    --warning-foreground: 220 20% 6%;
+    --warning-foreground: 0 0% 4%;
   }
 
   .dark {
-    --background: 220 20% 6%;
-    --foreground: 200 100% 95%;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 95%;
   }
 }
 
@@ -96,11 +96,11 @@
 
 @layer utilities {
   .text-glow {
-    text-shadow: 0 0 10px hsl(185 100% 50% / 0.7), 0 0 20px hsl(185 100% 50% / 0.5);
+    text-shadow: 0 0 10px hsl(0 85% 55% / 0.7), 0 0 20px hsl(0 85% 55% / 0.5);
   }
 
   .border-glow {
-    box-shadow: inset 0 0 20px hsl(185 100% 50% / 0.1), 0 0 20px hsl(185 100% 50% / 0.2);
+    box-shadow: inset 0 0 20px hsl(0 85% 55% / 0.1), 0 0 20px hsl(0 85% 55% / 0.2);
   }
 }
 
