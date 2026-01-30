@@ -50,14 +50,6 @@ const CameraOnly = () => {
             onToggle={() => setIsCameraActive(!isCameraActive)}
           />
 
-          {/* Detection notification */}
-          {lastDetection && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 px-6 py-3 bg-success/20 border border-success/50 rounded-full animate-pulse">
-              <p className="text-success font-display text-lg">
-                ¡Hola, {lastDetection}!
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Status bar */}
