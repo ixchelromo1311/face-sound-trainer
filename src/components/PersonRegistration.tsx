@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { UserPlus, Camera, Volume2, Loader2, Check, X } from 'lucide-react';
+import { UserPlus, Camera, Volume2, Loader2, Check, X, Upload, Music } from 'lucide-react';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { RegisteredPerson } from '@/types/face';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,8 @@ interface PersonRegistrationProps {
   onRegister: (person: RegisteredPerson) => void;
   onClose: () => void;
 }
+
+const REQUIRED_CAPTURES = 5;
 
 // Default notification sounds
 const DEFAULT_SOUNDS = [
@@ -20,13 +22,16 @@ const DEFAULT_SOUNDS = [
 export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationProps) => {
   const [step, setStep] = useState<'name' | 'capture' | 'sound'>('name');
   const [name, setName] = useState('');
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [capturedDescriptor, setCapturedDescriptor] = useState<Float32Array | null>(null);
+  const [capturedImages, setCapturedImages] = useState<string[]>([]);
+  const [capturedDescriptors, setCapturedDescriptors] = useState<Float32Array[]>([]);
   const [selectedSound, setSelectedSound] = useState(DEFAULT_SOUNDS[0].url);
+  const [customSoundData, setCustomSoundData] = useState<string | null>(null);
+  const [customSoundName, setCustomSoundName] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const {
     isModelLoaded,
@@ -67,11 +72,17 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
     const image = captureSnapshot();
     
     if (descriptor && image) {
-      setCapturedDescriptor(descriptor);
-      setCapturedImage(image);
-      stopCamera();
-      setCameraActive(false);
-      setStep('sound');
+      const newDescriptors = [...capturedDescriptors, descriptor];
+      const newImages = [...capturedImages, image];
+      
+      setCapturedDescriptors(newDescriptors);
+      setCapturedImages(newImages);
+      
+      if (newDescriptors.length >= REQUIRED_CAPTURES) {
+        stopCamera();
+        setCameraActive(false);
+        setStep('sound');
+      }
     } else {
       alert('No se detectó ningún rostro. Por favor, posiciona tu cara frente a la cámara.');
     }
@@ -79,15 +90,35 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
     setIsCapturing(false);
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('audio/')) {
+      alert('Por favor selecciona un archivo de audio válido (MP3, WAV, etc.)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      setCustomSoundData(base64);
+      setCustomSoundName(file.name);
+      setSelectedSound('custom');
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleRegister = () => {
-    if (!capturedDescriptor || !capturedImage) return;
+    if (capturedDescriptors.length === 0 || capturedImages.length === 0) return;
 
     const person: RegisteredPerson = {
       id: crypto.randomUUID(),
       name,
-      descriptor: capturedDescriptor,
-      soundUrl: selectedSound,
-      imageDataUrl: capturedImage,
+      descriptors: capturedDescriptors,
+      soundUrl: selectedSound === 'custom' ? '' : selectedSound,
+      soundData: selectedSound === 'custom' ? customSoundData || undefined : undefined,
+      imageDataUrl: capturedImages[0], // Use first image as profile
       createdAt: new Date()
     };
 
@@ -96,13 +127,20 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
   };
 
   const playSound = (url: string) => {
-    const audio = new Audio(url);
-    audio.play().catch(console.error);
+    if (url === 'custom' && customSoundData) {
+      const audio = new Audio(customSoundData);
+      audio.play().catch(console.error);
+    } else if (url !== 'custom') {
+      const audio = new Audio(url);
+      audio.play().catch(console.error);
+    }
   };
+
+  const capturesRemaining = REQUIRED_CAPTURES - capturedDescriptors.length;
 
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-card border border-border/50 rounded-lg p-6 animate-scale-in border-glow">
+      <div className="w-full max-w-md bg-card border border-border/50 rounded-lg p-6 animate-scale-in border-glow max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-display text-foreground flex items-center gap-2">
             <UserPlus className="w-5 h-5 text-primary" />
@@ -153,6 +191,28 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
 
         {step === 'capture' && (
           <div className="space-y-4">
+            {/* Captured images preview */}
+            {capturedImages.length > 0 && (
+              <div className="flex gap-2 justify-center mb-4">
+                {capturedImages.map((img, idx) => (
+                  <img
+                    key={idx}
+                    src={img}
+                    alt={`Captura ${idx + 1}`}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-success"
+                  />
+                ))}
+                {Array.from({ length: capturesRemaining }).map((_, idx) => (
+                  <div
+                    key={`empty-${idx}`}
+                    className="w-12 h-12 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center"
+                  >
+                    <span className="text-xs text-muted-foreground">{capturedImages.length + idx + 1}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="relative aspect-video bg-secondary rounded-lg overflow-hidden border border-border/50">
               {isLoading ? (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -165,9 +225,21 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
                 </>
               )}
             </div>
-            <p className="text-sm text-muted-foreground text-center">
-              Posiciona tu rostro en el centro y haz clic en capturar
-            </p>
+
+            <div className="text-center space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Captura <strong className="text-primary">{REQUIRED_CAPTURES}</strong> fotos para mayor precisión
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Mueve ligeramente la cabeza entre capturas (izquierda, derecha, arriba, abajo)
+              </p>
+              {capturedDescriptors.length > 0 && (
+                <p className="text-sm text-success font-display">
+                  {capturedDescriptors.length} de {REQUIRED_CAPTURES} capturas completadas
+                </p>
+              )}
+            </div>
+
             <Button
               onClick={handleCapture}
               disabled={isCapturing || isLoading}
@@ -181,7 +253,7 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
               ) : (
                 <>
                   <Camera className="w-4 h-4 mr-2" />
-                  Capturar Rostro
+                  Capturar Foto {capturedDescriptors.length + 1} de {REQUIRED_CAPTURES}
                 </>
               )}
             </Button>
@@ -190,23 +262,80 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
 
         {step === 'sound' && (
           <div className="space-y-4">
-            {capturedImage && (
-              <div className="flex justify-center mb-4">
+            {/* Profile images preview */}
+            <div className="flex justify-center gap-2 mb-4">
+              {capturedImages.slice(0, 3).map((img, idx) => (
                 <img
-                  src={capturedImage}
-                  alt={name}
-                  className="w-24 h-24 rounded-full object-cover border-2 border-primary glow-primary"
+                  key={idx}
+                  src={img}
+                  alt={`${name} ${idx + 1}`}
+                  className={`rounded-full object-cover border-2 border-primary ${
+                    idx === 0 ? 'w-20 h-20 glow-primary' : 'w-12 h-12 opacity-70'
+                  }`}
                 />
-              </div>
-            )}
+              ))}
+            </div>
+            
             <p className="text-sm text-muted-foreground text-center mb-4">
               Selecciona el sonido que se reproducirá al detectar a <strong className="text-foreground">{name}</strong>
             </p>
+
+            {/* Custom sound upload */}
+            <div className="mb-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className={`w-full p-4 rounded-lg flex items-center justify-center gap-3 transition-all border-2 border-dashed ${
+                  selectedSound === 'custom'
+                    ? 'bg-primary/20 border-primary'
+                    : 'bg-secondary/50 border-muted-foreground/30 hover:border-primary/50'
+                }`}
+              >
+                {customSoundData ? (
+                  <>
+                    <Music className="w-5 h-5 text-success" />
+                    <span className="text-foreground">{customSoundName}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        playSound('custom');
+                      }}
+                      className="p-2 rounded-full bg-primary/20 text-primary hover:bg-primary/30"
+                    >
+                      <Volume2 className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-5 h-5 text-primary" />
+                    <span className="text-muted-foreground">Subir archivo MP3 personalizado</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border/50" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">O usa un sonido predefinido</span>
+              </div>
+            </div>
+
             <div className="space-y-2">
               {DEFAULT_SOUNDS.map((sound) => (
                 <button
                   key={sound.url}
-                  onClick={() => setSelectedSound(sound.url)}
+                  onClick={() => {
+                    setSelectedSound(sound.url);
+                  }}
                   className={`w-full p-3 rounded-lg flex items-center justify-between transition-all ${
                     selectedSound === sound.url
                       ? 'bg-primary/20 border border-primary'
@@ -226,6 +355,7 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
                 </button>
               ))}
             </div>
+
             <Button
               onClick={handleRegister}
               className="w-full bg-success text-success-foreground hover:glow-success"
