@@ -4,33 +4,49 @@ import { RegisteredPerson, DetectionResult } from '@/types/face';
 
 const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
 
+// Singleton for model loading state
+let modelsLoaded = false;
+let modelsLoading = false;
+let modelLoadPromise: Promise<void> | null = null;
+
+const loadFaceModels = async (): Promise<void> => {
+  if (modelsLoaded) return;
+  if (modelsLoading && modelLoadPromise) return modelLoadPromise;
+  
+  modelsLoading = true;
+  modelLoadPromise = Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+  ]).then(() => {
+    modelsLoaded = true;
+    modelsLoading = false;
+  });
+  
+  return modelLoadPromise;
+};
+
 export const useFaceDetection = () => {
-  const [isModelLoaded, setIsModelLoaded] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isModelLoaded, setIsModelLoaded] = useState(modelsLoaded);
+  const [isLoading, setIsLoading] = useState(!modelsLoaded);
   const [error, setError] = useState<string | null>(null);
   
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const detectionIntervalRef = useRef<number | null>(null);
   const lastPlayedRef = useRef<Map<string, number>>(new Map());
-  const isModelLoadedRef = useRef(false);
-
-  // Keep ref in sync with state
-  useEffect(() => {
-    isModelLoadedRef.current = isModelLoaded;
-  }, [isModelLoaded]);
 
   const loadModels = useCallback(async () => {
-    if (isModelLoadedRef.current) return; // Already loaded
+    if (modelsLoaded) {
+      setIsModelLoaded(true);
+      setIsLoading(false);
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
     try {
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-      ]);
+      await loadFaceModels();
       setIsModelLoaded(true);
     } catch (err) {
       setError('Error al cargar los modelos de detección facial');
@@ -68,7 +84,7 @@ export const useFaceDetection = () => {
   }, []);
 
   const captureDescriptor = useCallback(async (): Promise<Float32Array | null> => {
-    if (!videoRef.current || !isModelLoadedRef.current) return null;
+    if (!videoRef.current || !modelsLoaded) return null;
 
     const detection = await faceapi
       .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
@@ -127,75 +143,79 @@ export const useFaceDetection = () => {
     };
 
     const detectFaces = async () => {
-      if (!videoRef.current || !isModelLoadedRef.current) return;
+      if (!videoRef.current || !modelsLoaded) return;
 
-      const detections = await faceapi
-        .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceDescriptors();
+      try {
+        const detections = await faceapi
+          .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptors();
 
-      if (canvasRef.current && videoRef.current) {
-        const displaySize = {
-          width: videoRef.current.videoWidth,
-          height: videoRef.current.videoHeight
-        };
-        faceapi.matchDimensions(canvasRef.current, displaySize);
-        
-        const ctx = canvasRef.current.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        }
-      }
-
-      for (const detection of detections) {
-        const box = detection.detection.box;
-        let bestMatch: { person: RegisteredPerson; distance: number } | null = null;
-
-        for (const person of registeredPeople) {
-          const distance = findBestMatch(detection.descriptor, person);
-          if (distance < 0.6 && (!bestMatch || distance < bestMatch.distance)) {
-            bestMatch = { person, distance };
-          }
-        }
-
-        const result: DetectionResult = {
-          personId: bestMatch?.person.id || null,
-          personName: bestMatch?.person.name || null,
-          confidence: bestMatch ? (1 - bestMatch.distance) * 100 : 0,
-          box: { x: box.x, y: box.y, width: box.width, height: box.height }
-        };
-
-        // Play sound with cooldown (3 seconds)
-        if (bestMatch) {
-          const now = Date.now();
-          const lastPlayed = lastPlayedRef.current.get(bestMatch.person.id) || 0;
-          if (now - lastPlayed > 3000) {
-            playPersonSound(bestMatch.person);
-            lastPlayedRef.current.set(bestMatch.person.id, now);
-          }
-        }
-
-        onDetection(result);
-
-        // Draw detection box
-        if (canvasRef.current) {
+        if (canvasRef.current && videoRef.current) {
+          const displaySize = {
+            width: videoRef.current.videoWidth,
+            height: videoRef.current.videoHeight
+          };
+          faceapi.matchDimensions(canvasRef.current, displaySize);
+          
           const ctx = canvasRef.current.getContext('2d');
           if (ctx) {
-            ctx.strokeStyle = bestMatch ? '#00ff88' : '#00d4ff';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(box.x, box.y, box.width, box.height);
-            
-            if (bestMatch) {
-              ctx.fillStyle = '#00ff88';
-              ctx.font = '16px Orbitron';
-              ctx.fillText(
-                `${bestMatch.person.name} (${result.confidence.toFixed(0)}%)`,
-                box.x,
-                box.y - 10
-              );
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          }
+        }
+
+        for (const detection of detections) {
+          const box = detection.detection.box;
+          let bestMatch: { person: RegisteredPerson; distance: number } | null = null;
+
+          for (const person of registeredPeople) {
+            const distance = findBestMatch(detection.descriptor, person);
+            if (distance < 0.6 && (!bestMatch || distance < bestMatch.distance)) {
+              bestMatch = { person, distance };
+            }
+          }
+
+          const result: DetectionResult = {
+            personId: bestMatch?.person.id || null,
+            personName: bestMatch?.person.name || null,
+            confidence: bestMatch ? (1 - bestMatch.distance) * 100 : 0,
+            box: { x: box.x, y: box.y, width: box.width, height: box.height }
+          };
+
+          // Play sound with cooldown (3 seconds)
+          if (bestMatch) {
+            const now = Date.now();
+            const lastPlayed = lastPlayedRef.current.get(bestMatch.person.id) || 0;
+            if (now - lastPlayed > 3000) {
+              playPersonSound(bestMatch.person);
+              lastPlayedRef.current.set(bestMatch.person.id, now);
+            }
+          }
+
+          onDetection(result);
+
+          // Draw detection box
+          if (canvasRef.current) {
+            const ctx = canvasRef.current.getContext('2d');
+            if (ctx) {
+              ctx.strokeStyle = bestMatch ? '#00ff88' : '#00d4ff';
+              ctx.lineWidth = 3;
+              ctx.strokeRect(box.x, box.y, box.width, box.height);
+              
+              if (bestMatch) {
+                ctx.fillStyle = '#00ff88';
+                ctx.font = '16px Orbitron';
+                ctx.fillText(
+                  `${bestMatch.person.name} (${result.confidence.toFixed(0)}%)`,
+                  box.x,
+                  box.y - 10
+                );
+              }
             }
           }
         }
+      } catch (err) {
+        console.error('Detection error:', err);
       }
     };
 
@@ -204,9 +224,12 @@ export const useFaceDetection = () => {
 
   useEffect(() => {
     return () => {
-      stopCamera();
+      if (detectionIntervalRef.current) {
+        clearInterval(detectionIntervalRef.current);
+        detectionIntervalRef.current = null;
+      }
     };
-  }, [stopCamera]);
+  }, []);
 
   return {
     isModelLoaded,
