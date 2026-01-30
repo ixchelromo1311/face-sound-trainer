@@ -195,42 +195,6 @@ export const useFaceDetection = () => {
 
           onDetection(result);
 
-          // Draw greeting label only (no box)
-          if (canvasRef.current && bestMatch) {
-            const ctx = canvasRef.current.getContext('2d');
-            if (ctx) {
-              const text = `¡Hola, ${bestMatch.person.name}!`;
-              ctx.font = '900 20px Barlow';
-              const textMetrics = ctx.measureText(text);
-              const textWidth = textMetrics.width;
-              const textHeight = 24;
-              const padding = 20;
-              const labelWidth = textWidth + padding * 2;
-              const labelHeight = textHeight + 16;
-              const labelX = box.x + (box.width - labelWidth) / 2;
-              const labelY = box.y - labelHeight - 10;
-              
-              // Draw pill-shaped background
-              const radius = labelHeight / 2;
-              ctx.beginPath();
-              ctx.moveTo(labelX + radius, labelY);
-              ctx.lineTo(labelX + labelWidth - radius, labelY);
-              ctx.arc(labelX + labelWidth - radius, labelY + radius, radius, -Math.PI / 2, Math.PI / 2);
-              ctx.lineTo(labelX + radius, labelY + labelHeight);
-              ctx.arc(labelX + radius, labelY + radius, radius, Math.PI / 2, -Math.PI / 2);
-              ctx.closePath();
-              ctx.fillStyle = 'rgba(0, 180, 120, 0.5)';
-              ctx.fill();
-              
-              // Draw text
-              ctx.fillStyle = '#00ff88';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(text, labelX + labelWidth / 2, labelY + labelHeight / 2);
-              ctx.textAlign = 'left';
-              ctx.textBaseline = 'alphabetic';
-            }
-          }
         }
       } catch (err) {
         console.error('Detection error:', err);
