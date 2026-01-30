@@ -8,12 +8,21 @@ export const useFaceDetection = () => {
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const detectionIntervalRef = useRef<number | null>(null);
   const lastPlayedRef = useRef<Map<string, number>>(new Map());
+  const isModelLoadedRef = useRef(false);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    isModelLoadedRef.current = isModelLoaded;
+  }, [isModelLoaded]);
 
   const loadModels = useCallback(async () => {
+    if (isModelLoadedRef.current) return; // Already loaded
+    
     setIsLoading(true);
     setError(null);
     try {
@@ -59,7 +68,7 @@ export const useFaceDetection = () => {
   }, []);
 
   const captureDescriptor = useCallback(async (): Promise<Float32Array | null> => {
-    if (!videoRef.current || !isModelLoaded) return null;
+    if (!videoRef.current || !isModelLoadedRef.current) return null;
 
     const detection = await faceapi
       .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
@@ -67,7 +76,7 @@ export const useFaceDetection = () => {
       .withFaceDescriptor();
 
     return detection?.descriptor || null;
-  }, [isModelLoaded]);
+  }, []);
 
   const captureSnapshot = useCallback((): string | null => {
     if (!videoRef.current) return null;
@@ -82,108 +91,6 @@ export const useFaceDetection = () => {
     return canvas.toDataURL('image/jpeg', 0.8);
   }, []);
 
-  // Find best matching descriptor among all descriptors of a person
-  const findBestMatch = useCallback((
-    detectedDescriptor: Float32Array,
-    person: RegisteredPerson
-  ): number => {
-    if (!person.descriptors || person.descriptors.length === 0) return Infinity;
-    
-    let minDistance = Infinity;
-    for (const descriptor of person.descriptors) {
-      const distance = faceapi.euclideanDistance(detectedDescriptor, descriptor);
-      if (distance < minDistance) {
-        minDistance = distance;
-      }
-    }
-    return minDistance;
-  }, []);
-
-  const playPersonSound = useCallback((person: RegisteredPerson) => {
-    // Use custom sound data if available, otherwise use URL
-    const audioSource = person.soundData || person.soundUrl;
-    if (audioSource) {
-      const audio = new Audio(audioSource);
-      audio.play().catch(console.error);
-    }
-  }, []);
-
-  const detectFaces = useCallback(async (
-    registeredPeople: RegisteredPerson[],
-    onDetection: (result: DetectionResult) => void
-  ) => {
-    if (!videoRef.current || !isModelLoaded) return;
-
-    const detections = await faceapi
-      .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions())
-      .withFaceLandmarks()
-      .withFaceDescriptors();
-
-    if (canvasRef.current && videoRef.current) {
-      const displaySize = {
-        width: videoRef.current.videoWidth,
-        height: videoRef.current.videoHeight
-      };
-      faceapi.matchDimensions(canvasRef.current, displaySize);
-      
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      }
-    }
-
-    for (const detection of detections) {
-      const box = detection.detection.box;
-      let bestMatch: { person: RegisteredPerson; distance: number } | null = null;
-
-      for (const person of registeredPeople) {
-        const distance = findBestMatch(detection.descriptor, person);
-        if (distance < 0.6 && (!bestMatch || distance < bestMatch.distance)) {
-          bestMatch = { person, distance };
-        }
-      }
-
-      const result: DetectionResult = {
-        personId: bestMatch?.person.id || null,
-        personName: bestMatch?.person.name || null,
-        confidence: bestMatch ? (1 - bestMatch.distance) * 100 : 0,
-        box: { x: box.x, y: box.y, width: box.width, height: box.height }
-      };
-
-      // Play sound with cooldown (3 seconds)
-      if (bestMatch) {
-        const now = Date.now();
-        const lastPlayed = lastPlayedRef.current.get(bestMatch.person.id) || 0;
-        if (now - lastPlayed > 3000) {
-          playPersonSound(bestMatch.person);
-          lastPlayedRef.current.set(bestMatch.person.id, now);
-        }
-      }
-
-      onDetection(result);
-
-      // Draw detection box
-      if (canvasRef.current) {
-        const ctx = canvasRef.current.getContext('2d');
-        if (ctx) {
-          ctx.strokeStyle = bestMatch ? '#00ff88' : '#00d4ff';
-          ctx.lineWidth = 3;
-          ctx.strokeRect(box.x, box.y, box.width, box.height);
-          
-          if (bestMatch) {
-            ctx.fillStyle = '#00ff88';
-            ctx.font = '16px Orbitron';
-            ctx.fillText(
-              `${bestMatch.person.name} (${result.confidence.toFixed(0)}%)`,
-              box.x,
-              box.y - 10
-            );
-          }
-        }
-      }
-    }
-  }, [isModelLoaded, findBestMatch, playPersonSound]);
-
   const startDetection = useCallback((
     registeredPeople: RegisteredPerson[],
     onDetection: (result: DetectionResult) => void,
@@ -195,10 +102,105 @@ export const useFaceDetection = () => {
       clearInterval(detectionIntervalRef.current);
     }
 
-    detectionIntervalRef.current = window.setInterval(() => {
-      detectFaces(registeredPeople, onDetection);
-    }, 200);
-  }, [detectFaces]);
+    const findBestMatch = (
+      detectedDescriptor: Float32Array,
+      person: RegisteredPerson
+    ): number => {
+      if (!person.descriptors || person.descriptors.length === 0) return Infinity;
+      
+      let minDistance = Infinity;
+      for (const descriptor of person.descriptors) {
+        const distance = faceapi.euclideanDistance(detectedDescriptor, descriptor);
+        if (distance < minDistance) {
+          minDistance = distance;
+        }
+      }
+      return minDistance;
+    };
+
+    const playPersonSound = (person: RegisteredPerson) => {
+      const audioSource = person.soundData || person.soundUrl;
+      if (audioSource) {
+        const audio = new Audio(audioSource);
+        audio.play().catch(console.error);
+      }
+    };
+
+    const detectFaces = async () => {
+      if (!videoRef.current || !isModelLoadedRef.current) return;
+
+      const detections = await faceapi
+        .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptors();
+
+      if (canvasRef.current && videoRef.current) {
+        const displaySize = {
+          width: videoRef.current.videoWidth,
+          height: videoRef.current.videoHeight
+        };
+        faceapi.matchDimensions(canvasRef.current, displaySize);
+        
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        }
+      }
+
+      for (const detection of detections) {
+        const box = detection.detection.box;
+        let bestMatch: { person: RegisteredPerson; distance: number } | null = null;
+
+        for (const person of registeredPeople) {
+          const distance = findBestMatch(detection.descriptor, person);
+          if (distance < 0.6 && (!bestMatch || distance < bestMatch.distance)) {
+            bestMatch = { person, distance };
+          }
+        }
+
+        const result: DetectionResult = {
+          personId: bestMatch?.person.id || null,
+          personName: bestMatch?.person.name || null,
+          confidence: bestMatch ? (1 - bestMatch.distance) * 100 : 0,
+          box: { x: box.x, y: box.y, width: box.width, height: box.height }
+        };
+
+        // Play sound with cooldown (3 seconds)
+        if (bestMatch) {
+          const now = Date.now();
+          const lastPlayed = lastPlayedRef.current.get(bestMatch.person.id) || 0;
+          if (now - lastPlayed > 3000) {
+            playPersonSound(bestMatch.person);
+            lastPlayedRef.current.set(bestMatch.person.id, now);
+          }
+        }
+
+        onDetection(result);
+
+        // Draw detection box
+        if (canvasRef.current) {
+          const ctx = canvasRef.current.getContext('2d');
+          if (ctx) {
+            ctx.strokeStyle = bestMatch ? '#00ff88' : '#00d4ff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+            
+            if (bestMatch) {
+              ctx.fillStyle = '#00ff88';
+              ctx.font = '16px Orbitron';
+              ctx.fillText(
+                `${bestMatch.person.name} (${result.confidence.toFixed(0)}%)`,
+                box.x,
+                box.y - 10
+              );
+            }
+          }
+        }
+      }
+    };
+
+    detectionIntervalRef.current = window.setInterval(detectFaces, 200);
+  }, []);
 
   useEffect(() => {
     return () => {
