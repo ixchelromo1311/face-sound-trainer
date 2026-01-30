@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Scan, UserPlus, Settings } from 'lucide-react';
+import { Scan, UserPlus, Camera } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { CameraView } from '@/components/CameraView';
 import { PersonRegistration } from '@/components/PersonRegistration';
 import { PersonList } from '@/components/PersonList';
@@ -10,7 +11,7 @@ import { DetectionResult } from '@/types/face';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const Index = () => {
+const Admin = () => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
   const [detections, setDetections] = useState<DetectionResult[]>([]);
@@ -43,13 +44,21 @@ const Index = () => {
           </div>
         </div>
 
-        <Button
-          onClick={() => setShowRegistration(true)}
-          className="bg-primary text-primary-foreground hover:glow-primary font-display"
-        >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Añadir Persona
-        </Button>
+        <div className="flex items-center gap-3">
+          <Link to="/">
+            <Button variant="outline" className="font-display">
+              <Camera className="w-4 h-4 mr-2" />
+              Vista Pública
+            </Button>
+          </Link>
+          <Button
+            onClick={() => setShowRegistration(true)}
+            className="bg-primary text-primary-foreground hover:glow-primary font-display"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Añadir Persona
+          </Button>
+        </div>
       </header>
 
       {/* Stats */}
@@ -113,4 +122,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Admin;
