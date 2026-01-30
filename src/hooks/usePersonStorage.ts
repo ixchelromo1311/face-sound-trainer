@@ -55,10 +55,10 @@ export const usePersonStorage = () => {
     });
   }, [savePeople]);
 
-  const updatePersonSound = useCallback((id: string, soundUrl: string, soundData?: string) => {
+  const updatePerson = useCallback((updatedPerson: RegisteredPerson) => {
     setPeople(prev => {
       const updated = prev.map(p => 
-        p.id === id ? { ...p, soundUrl, soundData } : p
+        p.id === updatedPerson.id ? updatedPerson : p
       );
       savePeople(updated);
       return updated;
@@ -73,6 +73,6 @@ export const usePersonStorage = () => {
     people,
     addPerson,
     removePerson,
-    updatePersonSound
+    updatePerson
   };
 };

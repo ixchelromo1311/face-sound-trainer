@@ -3,21 +3,23 @@ import { Scan, UserPlus, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { CameraView } from '@/components/CameraView';
 import { PersonRegistration } from '@/components/PersonRegistration';
+import { PersonEdit } from '@/components/PersonEdit';
 import { PersonList } from '@/components/PersonList';
 import { DetectionLog } from '@/components/DetectionLog';
 import { StatsPanel } from '@/components/StatsPanel';
 import { usePersonStorage } from '@/hooks/usePersonStorage';
-import { DetectionResult } from '@/types/face';
+import { DetectionResult, RegisteredPerson } from '@/types/face';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Admin = () => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
+  const [editingPerson, setEditingPerson] = useState<RegisteredPerson | null>(null);
   const [detections, setDetections] = useState<DetectionResult[]>([]);
   const [totalDetections, setTotalDetections] = useState(0);
 
-  const { people, addPerson, removePerson } = usePersonStorage();
+  const { people, addPerson, removePerson, updatePerson } = usePersonStorage();
 
   const handleDetection = useCallback((result: DetectionResult) => {
     setDetections(prev => [...prev.slice(-50), result]);
@@ -100,7 +102,11 @@ const Admin = () => {
 
             <div className="mt-4 p-4 bg-card border border-border/50 rounded-lg min-h-[400px]">
               <TabsContent value="people" className="mt-0">
-                <PersonList people={people} onRemove={removePerson} />
+                <PersonList 
+                  people={people} 
+                  onRemove={removePerson} 
+                  onEdit={setEditingPerson}
+                />
               </TabsContent>
 
               <TabsContent value="log" className="mt-0 h-full">
@@ -116,6 +122,15 @@ const Admin = () => {
         <PersonRegistration
           onRegister={addPerson}
           onClose={() => setShowRegistration(false)}
+        />
+      )}
+
+      {/* Edit modal */}
+      {editingPerson && (
+        <PersonEdit
+          person={editingPerson}
+          onSave={updatePerson}
+          onClose={() => setEditingPerson(null)}
         />
       )}
     </div>

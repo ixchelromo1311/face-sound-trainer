@@ -1,15 +1,19 @@
-import { Trash2, Volume2, User } from 'lucide-react';
+import { Trash2, Volume2, User, Edit } from 'lucide-react';
 import { RegisteredPerson } from '@/types/face';
 
 interface PersonListProps {
   people: RegisteredPerson[];
   onRemove: (id: string) => void;
+  onEdit: (person: RegisteredPerson) => void;
 }
 
-export const PersonList = ({ people, onRemove }: PersonListProps) => {
-  const playSound = (url: string) => {
-    const audio = new Audio(url);
-    audio.play().catch(console.error);
+export const PersonList = ({ people, onRemove, onEdit }: PersonListProps) => {
+  const playSound = (person: RegisteredPerson) => {
+    const audioSource = person.soundData || person.soundUrl;
+    if (audioSource) {
+      const audio = new Audio(audioSource);
+      audio.play().catch(console.error);
+    }
   };
 
   if (people.length === 0) {
@@ -42,11 +46,18 @@ export const PersonList = ({ people, onRemove }: PersonListProps) => {
           </div>
           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
-              onClick={() => playSound(person.soundUrl)}
+              onClick={() => playSound(person)}
               className="p-2 rounded-full bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
               title="Reproducir sonido"
             >
               <Volume2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onEdit(person)}
+              className="p-2 rounded-full bg-accent/20 text-accent hover:bg-accent/30 transition-colors"
+              title="Editar persona"
+            >
+              <Edit className="w-4 h-4" />
             </button>
             <button
               onClick={() => onRemove(person.id)}
