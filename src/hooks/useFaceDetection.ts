@@ -82,6 +82,32 @@ export const useFaceDetection = () => {
     return canvas.toDataURL('image/jpeg', 0.8);
   }, []);
 
+  // Find best matching descriptor among all descriptors of a person
+  const findBestMatch = useCallback((
+    detectedDescriptor: Float32Array,
+    person: RegisteredPerson
+  ): number => {
+    if (!person.descriptors || person.descriptors.length === 0) return Infinity;
+    
+    let minDistance = Infinity;
+    for (const descriptor of person.descriptors) {
+      const distance = faceapi.euclideanDistance(detectedDescriptor, descriptor);
+      if (distance < minDistance) {
+        minDistance = distance;
+      }
+    }
+    return minDistance;
+  }, []);
+
+  const playPersonSound = useCallback((person: RegisteredPerson) => {
+    // Use custom sound data if available, otherwise use URL
+    const audioSource = person.soundData || person.soundUrl;
+    if (audioSource) {
+      const audio = new Audio(audioSource);
+      audio.play().catch(console.error);
+    }
+  }, []);
+
   const detectFaces = useCallback(async (
     registeredPeople: RegisteredPerson[],
     onDetection: (result: DetectionResult) => void
@@ -111,7 +137,7 @@ export const useFaceDetection = () => {
       let bestMatch: { person: RegisteredPerson; distance: number } | null = null;
 
       for (const person of registeredPeople) {
-        const distance = faceapi.euclideanDistance(detection.descriptor, person.descriptor);
+        const distance = findBestMatch(detection.descriptor, person);
         if (distance < 0.6 && (!bestMatch || distance < bestMatch.distance)) {
           bestMatch = { person, distance };
         }
@@ -129,8 +155,7 @@ export const useFaceDetection = () => {
         const now = Date.now();
         const lastPlayed = lastPlayedRef.current.get(bestMatch.person.id) || 0;
         if (now - lastPlayed > 3000) {
-          const audio = new Audio(bestMatch.person.soundUrl);
-          audio.play().catch(console.error);
+          playPersonSound(bestMatch.person);
           lastPlayedRef.current.set(bestMatch.person.id, now);
         }
       }
@@ -157,7 +182,7 @@ export const useFaceDetection = () => {
         }
       }
     }
-  }, [isModelLoaded]);
+  }, [isModelLoaded, findBestMatch, playPersonSound]);
 
   const startDetection = useCallback((
     registeredPeople: RegisteredPerson[],

@@ -13,7 +13,11 @@ export const usePersonStorage = () => {
         const parsed = JSON.parse(stored);
         const restored = parsed.map((p: any) => ({
           ...p,
-          descriptor: new Float32Array(p.descriptor),
+          descriptors: p.descriptors 
+            ? p.descriptors.map((d: number[]) => new Float32Array(d))
+            : p.descriptor 
+              ? [new Float32Array(p.descriptor)] // Legacy support
+              : [],
           createdAt: new Date(p.createdAt)
         }));
         setPeople(restored);
@@ -27,7 +31,7 @@ export const usePersonStorage = () => {
     try {
       const serialized = newPeople.map(p => ({
         ...p,
-        descriptor: Array.from(p.descriptor)
+        descriptors: p.descriptors.map(d => Array.from(d))
       }));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
     } catch (err) {
@@ -51,10 +55,10 @@ export const usePersonStorage = () => {
     });
   }, [savePeople]);
 
-  const updatePersonSound = useCallback((id: string, soundUrl: string) => {
+  const updatePersonSound = useCallback((id: string, soundUrl: string, soundData?: string) => {
     setPeople(prev => {
       const updated = prev.map(p => 
-        p.id === id ? { ...p, soundUrl } : p
+        p.id === id ? { ...p, soundUrl, soundData } : p
       );
       savePeople(updated);
       return updated;
