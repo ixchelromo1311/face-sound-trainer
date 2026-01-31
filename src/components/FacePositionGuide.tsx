@@ -7,6 +7,7 @@ interface FacePositionGuideProps {
   captureMode?: boolean;
   captureStep?: number;
   totalCaptures?: number;
+  alignProgress?: number; // 0-100 percentage for auto-capture countdown
 }
 
 export const FacePositionGuide = ({ 
@@ -15,7 +16,8 @@ export const FacePositionGuide = ({
   isScanning,
   captureMode = false,
   captureStep = 0,
-  totalCaptures = 5
+  totalCaptures = 5,
+  alignProgress = 0
 }: FacePositionGuideProps) => {
   const [segments, setSegments] = useState<boolean[]>(Array(24).fill(false));
   
@@ -28,8 +30,12 @@ export const FacePositionGuide = ({
     'Inclina la cabeza hacia abajo',
   ];
   
+  // In capture mode, use alignProgress to fill segments
   useEffect(() => {
-    if (isFaceAligned && isScanning) {
+    if (captureMode && isFaceAligned) {
+      const filledCount = Math.floor((alignProgress / 100) * 24);
+      setSegments(prev => prev.map((_, i) => i < filledCount));
+    } else if (isFaceAligned && isScanning && !captureMode) {
       const interval = setInterval(() => {
         setSegments(prev => {
           const nextFalseIndex = prev.findIndex(s => !s);
@@ -46,7 +52,7 @@ export const FacePositionGuide = ({
     } else {
       setSegments(Array(24).fill(false));
     }
-  }, [isFaceAligned, isScanning]);
+  }, [isFaceAligned, isScanning, captureMode, alignProgress]);
 
   const getStatusColor = () => {
     if (isFaceAligned) return 'hsl(var(--success))';
@@ -172,9 +178,9 @@ export const FacePositionGuide = ({
             Mantén el rostro quieto
           </p>
         )}
-        {captureMode && isFaceAligned && (
+        {captureMode && isFaceAligned && alignProgress > 0 && (
           <p className="text-success text-xs mt-2 animate-pulse">
-            ✓ Posición correcta
+            Capturando en {Math.ceil((100 - alignProgress) / 100 * 1.5)}s...
           </p>
         )}
       </div>
