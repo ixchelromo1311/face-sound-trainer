@@ -4,14 +4,32 @@ interface FacePositionGuideProps {
   isFaceDetected: boolean;
   isFaceAligned: boolean;
   isScanning: boolean;
+  captureMode?: boolean;
+  captureStep?: number;
+  totalCaptures?: number;
 }
 
-export const FacePositionGuide = ({ isFaceDetected, isFaceAligned, isScanning }: FacePositionGuideProps) => {
+export const FacePositionGuide = ({ 
+  isFaceDetected, 
+  isFaceAligned, 
+  isScanning,
+  captureMode = false,
+  captureStep = 0,
+  totalCaptures = 5
+}: FacePositionGuideProps) => {
   const [segments, setSegments] = useState<boolean[]>(Array(24).fill(false));
+  
+  // Position instructions for each capture step
+  const captureInstructions = [
+    'Mira directamente a la cámara',
+    'Gira ligeramente hacia la izquierda',
+    'Gira ligeramente hacia la derecha',
+    'Inclina la cabeza hacia arriba',
+    'Inclina la cabeza hacia abajo',
+  ];
   
   useEffect(() => {
     if (isFaceAligned && isScanning) {
-      // Animate segments filling up when face is aligned
       const interval = setInterval(() => {
         setSegments(prev => {
           const nextFalseIndex = prev.findIndex(s => !s);
@@ -26,7 +44,6 @@ export const FacePositionGuide = ({ isFaceDetected, isFaceAligned, isScanning }:
       }, 80);
       return () => clearInterval(interval);
     } else {
-      // Reset segments when face moves away
       setSegments(Array(24).fill(false));
     }
   }, [isFaceAligned, isScanning]);
@@ -38,6 +55,11 @@ export const FacePositionGuide = ({ isFaceDetected, isFaceAligned, isScanning }:
   };
 
   const getStatusText = () => {
+    if (captureMode) {
+      if (isFaceAligned) return '¡Listo! Presiona capturar';
+      if (isFaceDetected) return 'Centra tu rostro';
+      return captureInstructions[captureStep] || 'Posiciona tu rostro';
+    }
     if (isFaceAligned) return 'Rostro detectado';
     if (isFaceDetected) return 'Centra tu rostro en el círculo';
     return 'Posiciona tu rostro dentro del círculo';
@@ -134,15 +156,25 @@ export const FacePositionGuide = ({ isFaceDetected, isFaceAligned, isScanning }:
       
       {/* Status text */}
       <div className="mt-6 sm:mt-8 px-4 text-center">
+        {captureMode && (
+          <p className="text-muted-foreground text-xs mb-2">
+            Captura {captureStep + 1} de {totalCaptures}
+          </p>
+        )}
         <p 
           className="font-display text-sm sm:text-base tracking-wide transition-colors duration-300"
           style={{ color: getStatusColor() }}
         >
           {getStatusText()}
         </p>
-        {!isFaceAligned && isScanning && (
+        {!isFaceAligned && isScanning && !captureMode && (
           <p className="text-muted-foreground text-xs sm:text-sm mt-2 animate-pulse">
             Mantén el rostro quieto
+          </p>
+        )}
+        {captureMode && isFaceAligned && (
+          <p className="text-success text-xs mt-2 animate-pulse">
+            ✓ Posición correcta
           </p>
         )}
       </div>
