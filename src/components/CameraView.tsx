@@ -82,7 +82,7 @@ export const CameraView = ({ registeredPeople, onDetection, isActive, onToggle }
   }, [isVideoReady, isActive, registeredPeople, onDetection, startDetection]);
 
   return (
-    <div className="relative w-full aspect-video bg-secondary/50 rounded-lg overflow-hidden border border-border/50 border-glow">
+    <div className="relative w-full h-full bg-secondary/50 rounded-lg overflow-hidden border border-border/50 border-glow">
       {/* Scanner overlay */}
       {isActive && isVideoReady && (
         <div className="absolute inset-0 pointer-events-none z-10">
