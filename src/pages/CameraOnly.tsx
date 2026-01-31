@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
-import { Scan, Settings } from 'lucide-react';
+import { Scan, Settings, Loader2 } from 'lucide-react';
 import { CameraView } from '@/components/CameraView';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { usePersonStorage } from '@/contexts/PersonStorageContext';
-import { DetectionResult, RegisteredPerson } from '@/types/face';
+import { DetectionResult } from '@/types/face';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
@@ -12,7 +12,7 @@ const CameraOnly = () => {
   const [lastDetection, setLastDetection] = useState<string | null>(null);
   const [videoToPlay, setVideoToPlay] = useState<{ data: string; name: string } | null>(null);
 
-  const { people } = usePersonStorage();
+  const { people, isLoading } = usePersonStorage();
 
   const handleDetection = useCallback((result: DetectionResult) => {
     if (result.personId && result.personName) {
@@ -76,14 +76,23 @@ const CameraOnly = () => {
 
         {/* Status bar */}
         <div className="flex-shrink-0 mt-2 sm:mt-4 flex items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-          <span className="font-display">
-            {people.length} persona{people.length !== 1 ? 's' : ''} registrada{people.length !== 1 ? 's' : ''}
-          </span>
-          <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-          <span className={`flex items-center gap-1 sm:gap-2 ${isCameraActive ? 'text-success' : ''}`}>
-            <span className={`w-2 h-2 rounded-full ${isCameraActive ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`} />
-            {isCameraActive ? 'Activo' : 'Inactivo'}
-          </span>
+          {isLoading ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Cargando desde la nube...
+            </span>
+          ) : (
+            <>
+              <span className="font-display">
+                {people.length} persona{people.length !== 1 ? 's' : ''} registrada{people.length !== 1 ? 's' : ''}
+              </span>
+              <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+              <span className={`flex items-center gap-1 sm:gap-2 ${isCameraActive ? 'text-success' : ''}`}>
+                <span className={`w-2 h-2 rounded-full ${isCameraActive ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`} />
+                {isCameraActive ? 'Activo' : 'Inactivo'}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
