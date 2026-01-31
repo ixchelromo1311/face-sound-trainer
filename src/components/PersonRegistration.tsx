@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { UserPlus, Camera, Volume2, Loader2, Check, X, Upload, Music } from 'lucide-react';
+import { UserPlus, Camera, Volume2, Loader2, Check, X, Upload, Music, Video } from 'lucide-react';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { RegisteredPerson } from '@/types/face';
 import { Button } from '@/components/ui/button';
@@ -20,18 +20,21 @@ const DEFAULT_SOUNDS = [
 ];
 
 export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationProps) => {
-  const [step, setStep] = useState<'name' | 'capture' | 'sound'>('name');
+  const [step, setStep] = useState<'name' | 'capture' | 'media'>('name');
   const [name, setName] = useState('');
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [capturedDescriptors, setCapturedDescriptors] = useState<Float32Array[]>([]);
   const [selectedSound, setSelectedSound] = useState(DEFAULT_SOUNDS[0].url);
   const [customSoundData, setCustomSoundData] = useState<string | null>(null);
   const [customSoundName, setCustomSoundName] = useState<string | null>(null);
+  const [videoData, setVideoData] = useState<string | null>(null);
+  const [videoName, setVideoName] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   
   const {
     isModelLoaded,
@@ -65,6 +68,24 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
     };
   }, [step, isModelLoaded, startCamera, stopCamera, cameraActive]);
 
+  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('video/')) {
+      alert('Por favor selecciona un archivo de video válido (MP4, WebM, etc.)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      setVideoData(base64);
+      setVideoName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleCapture = async () => {
     setIsCapturing(true);
     
@@ -81,7 +102,7 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
       if (newDescriptors.length >= REQUIRED_CAPTURES) {
         stopCamera();
         setCameraActive(false);
-        setStep('sound');
+        setStep('media');
       }
     } else {
       alert('No se detectó ningún rostro. Por favor, posiciona tu cara frente a la cámara.');
@@ -118,6 +139,7 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
       descriptors: capturedDescriptors,
       soundUrl: selectedSound === 'custom' ? '' : selectedSound,
       soundData: selectedSound === 'custom' ? customSoundData || undefined : undefined,
+      videoData: videoData || undefined,
       imageDataUrl: capturedImages[0], // Use first image as profile
       createdAt: new Date()
     };
@@ -153,14 +175,14 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
 
         {/* Progress steps */}
         <div className="flex items-center justify-center gap-4 mb-8">
-          {['name', 'capture', 'sound'].map((s, i) => (
+          {['name', 'capture', 'media'].map((s, i) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display ${
                 step === s ? 'bg-primary text-primary-foreground' : 
-                ['name', 'capture', 'sound'].indexOf(step) > i ? 'bg-success text-success-foreground' : 
+                ['name', 'capture', 'media'].indexOf(step) > i ? 'bg-success text-success-foreground' : 
                 'bg-muted text-muted-foreground'
               }`}>
-                {['name', 'capture', 'sound'].indexOf(step) > i ? <Check className="w-4 h-4" /> : i + 1}
+                {['name', 'capture', 'media'].indexOf(step) > i ? <Check className="w-4 h-4" /> : i + 1}
               </div>
               {i < 2 && <div className="w-8 h-0.5 bg-muted" />}
             </div>
@@ -260,7 +282,7 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
           </div>
         )}
 
-        {step === 'sound' && (
+        {step === 'media' && (
           <div className="space-y-4">
             {/* Profile images preview */}
             <div className="flex justify-center gap-2 mb-4">
@@ -275,10 +297,59 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
                 />
               ))}
             </div>
-            
-            <p className="text-sm text-muted-foreground text-center mb-4">
-              Selecciona el sonido que se reproducirá al detectar a <strong className="text-foreground">{name}</strong>
-            </p>
+
+            {/* Video upload */}
+            <div className="mb-4">
+              <label className="block text-sm text-muted-foreground mb-2">
+                Video de bienvenida (opcional)
+              </label>
+              <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/*"
+                onChange={handleVideoUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => videoInputRef.current?.click()}
+                className={`w-full p-4 rounded-lg flex items-center justify-center gap-3 transition-all border-2 border-dashed ${
+                  videoData
+                    ? 'bg-primary/20 border-primary'
+                    : 'bg-secondary/50 border-muted-foreground/30 hover:border-primary/50'
+                }`}
+              >
+                {videoData ? (
+                  <>
+                    <Video className="w-5 h-5 text-success" />
+                    <span className="text-foreground">{videoName}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setVideoData(null);
+                        setVideoName(null);
+                      }}
+                      className="p-2 rounded-full bg-destructive/20 text-destructive hover:bg-destructive/30"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-5 h-5 text-primary" />
+                    <span className="text-muted-foreground">Subir video (MP4, WebM)</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border/50" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Sonido de notificación</span>
+              </div>
+            </div>
 
             {/* Custom sound upload */}
             <div className="mb-4">
@@ -318,15 +389,6 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
                   </>
                 )}
               </button>
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/50" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">O usa un sonido predefinido</span>
-              </div>
             </div>
 
             <div className="space-y-2">

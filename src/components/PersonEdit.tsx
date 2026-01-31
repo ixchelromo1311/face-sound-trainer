@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Edit, Camera, Volume2, Loader2, Check, X, Upload, Music, RotateCcw } from 'lucide-react';
+import { Edit, Camera, Volume2, Loader2, Check, X, Upload, Music, RotateCcw, Video } from 'lucide-react';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { RegisteredPerson } from '@/types/face';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,10 @@ export const PersonEdit = ({ person, onSave, onClose }: PersonEditProps) => {
   const [customSoundName, setCustomSoundName] = useState<string | null>(
     person.soundData ? 'Audio personalizado' : null
   );
+  const [videoData, setVideoData] = useState<string | null>(person.videoData || null);
+  const [videoName, setVideoName] = useState<string | null>(
+    person.videoData ? 'Video personalizado' : null
+  );
   const [isRecapturing, setIsRecapturing] = useState(false);
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [capturedDescriptors, setCapturedDescriptors] = useState<Float32Array[]>([]);
@@ -36,6 +40,7 @@ export const PersonEdit = ({ person, onSave, onClose }: PersonEditProps) => {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const {
     isModelLoaded,
@@ -113,12 +118,31 @@ export const PersonEdit = ({ person, onSave, onClose }: PersonEditProps) => {
     reader.readAsDataURL(file);
   };
 
+  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('video/')) {
+      alert('Por favor selecciona un archivo de video válido (MP4, WebM, etc.)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      setVideoData(base64);
+      setVideoName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = () => {
     const updatedPerson: RegisteredPerson = {
       ...person,
       name,
       soundUrl: selectedSound === 'custom' ? '' : selectedSound,
       soundData: selectedSound === 'custom' ? customSoundData || undefined : undefined,
+      videoData: videoData || undefined,
       ...(capturedDescriptors.length > 0 && {
         descriptors: capturedDescriptors,
         imageDataUrl: capturedImages[0]
@@ -266,6 +290,48 @@ export const PersonEdit = ({ person, onSave, onClose }: PersonEditProps) => {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Video section */}
+          <div>
+            <label className="block text-sm text-muted-foreground mb-2">Video de bienvenida</label>
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              onChange={handleVideoUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => videoInputRef.current?.click()}
+              className={`w-full p-4 rounded-lg flex items-center justify-center gap-3 transition-all border-2 border-dashed ${
+                videoData
+                  ? 'bg-primary/20 border-primary'
+                  : 'bg-secondary/50 border-muted-foreground/30 hover:border-primary/50'
+              }`}
+            >
+              {videoData ? (
+                <>
+                  <Video className="w-5 h-5 text-success" />
+                  <span className="text-foreground">{videoName}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setVideoData(null);
+                      setVideoName(null);
+                    }}
+                    className="p-2 rounded-full bg-destructive/20 text-destructive hover:bg-destructive/30"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-5 h-5 text-primary" />
+                  <span className="text-muted-foreground">Subir video (MP4, WebM)</span>
+                </>
+              )}
+            </button>
           </div>
 
           {/* Sound section */}

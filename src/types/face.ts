@@ -4,6 +4,7 @@ export interface RegisteredPerson {
   descriptors: Float32Array[]; // Multiple descriptors for better accuracy
   soundUrl: string;
   soundData?: string; // Base64 audio data for custom sounds
+  videoData?: string; // Base64 video data for detection playback
   imageDataUrl: string;
   createdAt: Date;
 }
