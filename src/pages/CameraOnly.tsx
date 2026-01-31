@@ -1,24 +1,38 @@
 import { useState, useCallback } from 'react';
 import { Scan, Settings } from 'lucide-react';
 import { CameraView } from '@/components/CameraView';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { usePersonStorage } from '@/hooks/usePersonStorage';
-import { DetectionResult } from '@/types/face';
+import { DetectionResult, RegisteredPerson } from '@/types/face';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
 const CameraOnly = () => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [lastDetection, setLastDetection] = useState<string | null>(null);
+  const [videoToPlay, setVideoToPlay] = useState<{ data: string; name: string } | null>(null);
 
   const { people } = usePersonStorage();
 
   const handleDetection = useCallback((result: DetectionResult) => {
     if (result.personId && result.personName) {
-      setLastDetection(result.personName);
-      // Reset after 3 seconds
-      setTimeout(() => setLastDetection(null), 3000);
+      // Find the person to check if they have a video
+      const person = people.find(p => p.id === result.personId);
+      
+      if (person?.videoData && !videoToPlay) {
+        // Play video if person has one and no video is currently playing
+        setVideoToPlay({ data: person.videoData, name: person.name });
+      } else if (!person?.videoData) {
+        // Show text notification if no video
+        setLastDetection(result.personName);
+        setTimeout(() => setLastDetection(null), 3000);
+      }
     }
-  }, []);
+  }, [people, videoToPlay]);
+
+  const handleVideoClose = () => {
+    setVideoToPlay(null);
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -73,6 +87,14 @@ const CameraOnly = () => {
           </span>
         </div>
       </div>
+      {/* Video player modal */}
+      {videoToPlay && (
+        <VideoPlayer
+          videoData={videoToPlay.data}
+          personName={videoToPlay.name}
+          onClose={handleVideoClose}
+        />
+      )}
     </div>
   );
 };
