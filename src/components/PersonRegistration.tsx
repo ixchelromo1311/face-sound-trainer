@@ -35,7 +35,10 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
   const [cameraActive, setCameraActive] = useState(false);
   const [isFaceDetected, setIsFaceDetected] = useState(false);
   const [isFaceAligned, setIsFaceAligned] = useState(false);
+  const [alignedTime, setAlignedTime] = useState(0);
+  const [autoCapturing, setAutoCapturing] = useState(false);
   const detectionIntervalRef = useRef<number | null>(null);
+  const autoCaptureRef = useRef<number | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -140,8 +143,11 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
     reader.readAsDataURL(file);
   };
 
-  const handleCapture = async () => {
+  const handleCapture = useCallback(async () => {
+    if (isCapturing || autoCapturing) return;
+    
     setIsCapturing(true);
+    setAutoCapturing(true);
     
     const descriptor = await captureDescriptor();
     const image = captureSnapshot();
@@ -153,17 +159,61 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
       setCapturedDescriptors(newDescriptors);
       setCapturedImages(newImages);
       
+      // Reset alignment state for next capture
+      setIsFaceAligned(false);
+      setAlignedTime(0);
+      
       if (newDescriptors.length >= REQUIRED_CAPTURES) {
+        // Clear detection interval
+        if (detectionIntervalRef.current) {
+          clearInterval(detectionIntervalRef.current);
+          detectionIntervalRef.current = null;
+        }
         stopCamera();
         setCameraActive(false);
         setStep('media');
       }
-    } else {
-      alert('No se detectó ningún rostro. Por favor, posiciona tu cara frente a la cámara.');
     }
     
     setIsCapturing(false);
-  };
+    // Small delay before allowing next auto-capture
+    setTimeout(() => setAutoCapturing(false), 800);
+  }, [isCapturing, autoCapturing, capturedDescriptors, capturedImages, captureDescriptor, captureSnapshot, stopCamera]);
+
+  // Auto-capture when face is aligned for sufficient time
+  useEffect(() => {
+    if (isFaceAligned && !isCapturing && !autoCapturing && step === 'capture') {
+      // Start counting aligned time
+      autoCaptureRef.current = window.setInterval(() => {
+        setAlignedTime(prev => {
+          const newTime = prev + 100;
+          if (newTime >= 1500) { // 1.5 seconds aligned = auto capture
+            if (autoCaptureRef.current) {
+              clearInterval(autoCaptureRef.current);
+              autoCaptureRef.current = null;
+            }
+            handleCapture();
+            return 0;
+          }
+          return newTime;
+        });
+      }, 100);
+    } else {
+      // Reset timer when not aligned
+      if (autoCaptureRef.current) {
+        clearInterval(autoCaptureRef.current);
+        autoCaptureRef.current = null;
+      }
+      setAlignedTime(0);
+    }
+    
+    return () => {
+      if (autoCaptureRef.current) {
+        clearInterval(autoCaptureRef.current);
+        autoCaptureRef.current = null;
+      }
+    };
+  }, [isFaceAligned, isCapturing, autoCapturing, step, handleCapture]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -308,28 +358,30 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
                     captureMode={true}
                     captureStep={capturedDescriptors.length}
                     totalCaptures={REQUIRED_CAPTURES}
+                    alignProgress={(alignedTime / 1500) * 100}
                   />
                 </>
               )}
             </div>
 
-            <Button
-              onClick={handleCapture}
-              disabled={isCapturing || isLoading || !isFaceAligned}
-              className={`w-full ${isFaceAligned ? 'bg-success text-success-foreground hover:glow-success' : 'bg-primary text-primary-foreground'}`}
-            >
-              {isCapturing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Capturando...
-                </>
+            {/* Auto-capture status indicator */}
+            <div className="text-center py-2">
+              {isCapturing || autoCapturing ? (
+                <div className="flex items-center justify-center gap-2 text-success">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="font-display text-sm">Capturando...</span>
+                </div>
+              ) : isFaceAligned ? (
+                <div className="flex items-center justify-center gap-2 text-success">
+                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                  <span className="font-display text-sm">Mantén la posición...</span>
+                </div>
               ) : (
-                <>
-                  <Camera className="w-4 h-4 mr-2" />
-                  {isFaceAligned ? 'Capturar ahora' : 'Posiciona tu rostro'}
-                </>
+                <span className="text-muted-foreground text-sm">
+                  Captura automática al detectar posición correcta
+                </span>
               )}
-            </Button>
+            </div>
           </div>
         )}
 
