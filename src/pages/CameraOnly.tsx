@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Scan, Settings } from 'lucide-react';
 import { CameraView } from '@/components/CameraView';
 import { VideoPlayer } from '@/components/VideoPlayer';
-import { usePersonStorage } from '@/hooks/usePersonStorage';
+import { usePersonStorage } from '@/contexts/PersonStorageContext';
 import { DetectionResult, RegisteredPerson } from '@/types/face';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
