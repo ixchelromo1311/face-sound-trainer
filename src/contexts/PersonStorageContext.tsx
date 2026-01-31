@@ -82,16 +82,18 @@ export const PersonStorageProvider = ({ children }: { children: ReactNode }) => 
       }
       
       if (data) {
+        console.log('Loaded from database:', data);
         const restored: RegisteredPerson[] = data.map((p) => ({
           id: p.id,
           name: p.name,
           descriptors: (p.descriptors as number[][]).map(d => new Float32Array(d)),
           soundUrl: p.sound_url || '',
           soundData: undefined,
-          videoData: undefined,
+          videoData: p.video_url || undefined, // Map video URL
           imageDataUrl: p.image_url || '',
           createdAt: new Date(p.created_at)
         }));
+        console.log('Restored people:', restored);
         setPeople(restored);
       }
     } catch (err) {
