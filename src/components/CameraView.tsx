@@ -30,14 +30,34 @@ export const CameraView = ({ registeredPeople, onDetection, isActive, onToggle }
   }, [loadModels]);
 
   useEffect(() => {
+    let cancelled = false;
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    const markReady = () => {
+      if (cancelled) return;
+      // Wait until we have real dimensions; otherwise face-api will struggle / return nothing.
+      if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+        setIsVideoReady(true);
+        videoEl.play().catch(() => {
+          // Autoplay can still be blocked in some contexts; detection can still run.
+        });
+      }
+    };
+
     const handleCamera = async () => {
-      if (isActive && isModelLoaded && videoRef.current) {
-        const success = await startCamera(videoRef.current);
+      if (isActive && isModelLoaded) {
+        setIsVideoReady(false);
+
+        // Attach listeners BEFORE setting srcObject to avoid missing the event.
+        videoEl.addEventListener('loadedmetadata', markReady);
+        videoEl.addEventListener('loadeddata', markReady);
+        videoEl.addEventListener('canplay', markReady);
+
+        const success = await startCamera(videoEl);
         if (success) {
-          videoRef.current.onloadedmetadata = () => {
-            videoRef.current?.play();
-            setIsVideoReady(true);
-          };
+          // In case events already fired.
+          markReady();
         }
       } else {
         stopCamera();
@@ -46,6 +66,13 @@ export const CameraView = ({ registeredPeople, onDetection, isActive, onToggle }
     };
 
     handleCamera();
+
+    return () => {
+      cancelled = true;
+      videoEl.removeEventListener('loadedmetadata', markReady);
+      videoEl.removeEventListener('loadeddata', markReady);
+      videoEl.removeEventListener('canplay', markReady);
+    };
   }, [isActive, isModelLoaded, startCamera, stopCamera]);
 
   useEffect(() => {
