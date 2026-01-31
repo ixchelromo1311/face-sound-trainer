@@ -125,9 +125,9 @@ export const useFaceDetection = () => {
     }
 
     const detectorOptions = new faceapi.TinyFaceDetectorOptions({
-      // Slightly lower threshold helps in low light / fast motion.
-      scoreThreshold: 0.4,
-      inputSize: 416
+      // Higher threshold for faster filtering, smaller input for speed
+      scoreThreshold: 0.5,
+      inputSize: 320
     });
 
     const findBestMatch = (
