@@ -148,10 +148,31 @@ export const useFaceDetection = () => {
 
     const playPersonSound = (person: RegisteredPerson) => {
       const audioSource = person.soundData || person.soundUrl;
+      console.log('Playing sound for:', person.name, 'URL:', audioSource);
+      
       if (audioSource) {
         const audio = new Audio(audioSource);
         audio.loop = false;
-        audio.play().catch(console.error);
+        audio.volume = 1.0;
+        
+        // Add event listeners for debugging
+        audio.oncanplaythrough = () => {
+          console.log('Audio ready to play');
+          audio.play().catch(err => {
+            console.error('Audio play error:', err);
+          });
+        };
+        
+        audio.onerror = (e) => {
+          console.error('Audio loading error:', e, audioSource);
+        };
+        
+        // Fallback: try to play directly
+        audio.play().catch(err => {
+          console.warn('Direct play failed, waiting for canplaythrough:', err.message);
+        });
+      } else {
+        console.log('No audio source for person:', person.name);
       }
     };
 
