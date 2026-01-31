@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { UserPlus, Camera, Volume2, Loader2, Check, X, Upload, Music, Video } from 'lucide-react';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
+import { FacePositionGuide } from '@/components/FacePositionGuide';
 import { RegisteredPerson } from '@/types/face';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import * as faceapi from 'face-api.js';
 
 interface PersonRegistrationProps {
   onRegister: (person: RegisteredPerson) => void;
@@ -31,6 +33,9 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
   const [videoName, setVideoName] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
+  const [isFaceDetected, setIsFaceDetected] = useState(false);
+  const [isFaceAligned, setIsFaceAligned] = useState(false);
+  const detectionIntervalRef = useRef<number | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,12 +55,57 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
     loadModels();
   }, [loadModels]);
 
+  // Start face detection for position guide
+  const startFaceTracking = useCallback(() => {
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+    }
+
+    const detectFace = async () => {
+      if (!videoRef.current || videoRef.current.readyState < 2) return;
+      
+      try {
+        const detection = await faceapi
+          .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }));
+        
+        if (detection) {
+          setIsFaceDetected(true);
+          const box = detection.box;
+          const videoWidth = videoRef.current.videoWidth;
+          const videoHeight = videoRef.current.videoHeight;
+          
+          const faceCenterX = box.x + box.width / 2;
+          const faceCenterY = box.y + box.height / 2;
+          const videoCenterX = videoWidth / 2;
+          const videoCenterY = videoHeight / 2;
+          
+          const toleranceX = videoWidth * 0.2;
+          const toleranceY = videoHeight * 0.2;
+          
+          const isAligned = 
+            Math.abs(faceCenterX - videoCenterX) < toleranceX &&
+            Math.abs(faceCenterY - videoCenterY) < toleranceY;
+          
+          setIsFaceAligned(isAligned);
+        } else {
+          setIsFaceDetected(false);
+          setIsFaceAligned(false);
+        }
+      } catch (err) {
+        console.error('Face tracking error:', err);
+      }
+    };
+
+    detectionIntervalRef.current = window.setInterval(detectFace, 150);
+  }, []);
+
   useEffect(() => {
     if (step === 'capture' && isModelLoaded && videoRef.current && !cameraActive) {
       startCamera(videoRef.current).then(success => {
         if (success) {
           videoRef.current?.play();
           setCameraActive(true);
+          startFaceTracking();
         }
       });
     }
@@ -64,9 +114,13 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
       if (step !== 'capture') {
         stopCamera();
         setCameraActive(false);
+        if (detectionIntervalRef.current) {
+          clearInterval(detectionIntervalRef.current);
+          detectionIntervalRef.current = null;
+        }
       }
     };
-  }, [step, isModelLoaded, startCamera, stopCamera, cameraActive]);
+  }, [step, isModelLoaded, startCamera, stopCamera, cameraActive, startFaceTracking]);
 
   const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -214,58 +268,55 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
         {step === 'capture' && (
           <div className="space-y-4">
             {/* Captured images preview */}
-            {capturedImages.length > 0 && (
-              <div className="flex gap-2 justify-center mb-4">
-                {capturedImages.map((img, idx) => (
-                  <img
-                    key={idx}
-                    src={img}
-                    alt={`Captura ${idx + 1}`}
-                    className="w-12 h-12 rounded-full object-cover border-2 border-success"
-                  />
-                ))}
-                {Array.from({ length: capturesRemaining }).map((_, idx) => (
-                  <div
-                    key={`empty-${idx}`}
-                    className="w-12 h-12 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center"
-                  >
-                    <span className="text-xs text-muted-foreground">{capturedImages.length + idx + 1}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="flex gap-2 justify-center mb-2">
+              {capturedImages.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img}
+                  alt={`Captura ${idx + 1}`}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-success"
+                />
+              ))}
+              {Array.from({ length: capturesRemaining }).map((_, idx) => (
+                <div
+                  key={`empty-${idx}`}
+                  className="w-10 h-10 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center"
+                >
+                  <span className="text-xs text-muted-foreground">{capturedImages.length + idx + 1}</span>
+                </div>
+              ))}
+            </div>
 
-            <div className="relative aspect-video bg-secondary rounded-lg overflow-hidden border border-border/50">
+            <div className="relative aspect-[3/4] bg-black rounded-lg overflow-hidden border border-border/50">
               {isLoading ? (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <Loader2 className="w-8 h-8 text-primary animate-spin" />
                 </div>
               ) : (
                 <>
-                  <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-                  <div className="absolute inset-0 border-2 border-primary/30 rounded-lg pointer-events-none" />
+                  <video 
+                    ref={videoRef} 
+                    className="w-full h-full object-cover" 
+                    playsInline 
+                    muted 
+                  />
+                  {/* Face Position Guide overlay */}
+                  <FacePositionGuide
+                    isFaceDetected={isFaceDetected}
+                    isFaceAligned={isFaceAligned}
+                    isScanning={cameraActive}
+                    captureMode={true}
+                    captureStep={capturedDescriptors.length}
+                    totalCaptures={REQUIRED_CAPTURES}
+                  />
                 </>
-              )}
-            </div>
-
-            <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Captura <strong className="text-primary">{REQUIRED_CAPTURES}</strong> fotos para mayor precisión
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Mueve ligeramente la cabeza entre capturas (izquierda, derecha, arriba, abajo)
-              </p>
-              {capturedDescriptors.length > 0 && (
-                <p className="text-sm text-success font-display">
-                  {capturedDescriptors.length} de {REQUIRED_CAPTURES} capturas completadas
-                </p>
               )}
             </div>
 
             <Button
               onClick={handleCapture}
-              disabled={isCapturing || isLoading}
-              className="w-full bg-primary text-primary-foreground hover:glow-primary"
+              disabled={isCapturing || isLoading || !isFaceAligned}
+              className={`w-full ${isFaceAligned ? 'bg-success text-success-foreground hover:glow-success' : 'bg-primary text-primary-foreground'}`}
             >
               {isCapturing ? (
                 <>
@@ -275,7 +326,7 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
               ) : (
                 <>
                   <Camera className="w-4 h-4 mr-2" />
-                  Capturar Foto {capturedDescriptors.length + 1} de {REQUIRED_CAPTURES}
+                  {isFaceAligned ? 'Capturar ahora' : 'Posiciona tu rostro'}
                 </>
               )}
             </Button>
