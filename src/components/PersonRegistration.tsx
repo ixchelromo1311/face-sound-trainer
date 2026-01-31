@@ -161,8 +161,8 @@ export const PersonRegistration = ({ onRegister, onClose }: PersonRegistrationPr
   const capturesRemaining = REQUIRED_CAPTURES - capturedDescriptors.length;
 
   return (
-    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-card border border-border/50 rounded-lg p-6 animate-scale-in border-glow max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="w-full max-w-md bg-card border border-border/50 rounded-lg p-6 border-glow my-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-display text-foreground flex items-center gap-2">
             <UserPlus className="w-5 h-5 text-primary" />
