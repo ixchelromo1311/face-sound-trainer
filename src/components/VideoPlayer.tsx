@@ -14,13 +14,13 @@ export const VideoPlayer = ({ videoData, personName, onClose }: VideoPlayerProps
   const [showBlackScreen, setShowBlackScreen] = useState(false);
 
   useEffect(() => {
-    // 2 second delay before showing video
+    // 1 second delay before showing video
     const showTimer = setTimeout(() => {
       setIsVisible(true);
       if (videoRef.current) {
         videoRef.current.play().catch(console.error);
       }
-    }, 2000);
+    }, 1000);
 
     return () => clearTimeout(showTimer);
   }, []);
