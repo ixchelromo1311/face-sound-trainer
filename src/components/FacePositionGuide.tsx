@@ -123,8 +123,8 @@ export const FacePositionGuide = ({ isFaceDetected, isFaceAligned, isScanning }:
         
         {/* Success checkmark */}
         {isFaceAligned && segments.every(s => s) && (
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-scale-in">
-            <svg className="w-16 h-16 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <svg className="w-16 h-16 text-success animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" className="opacity-20" fill="currentColor" />
               <path d="M8 12l2.5 2.5L16 9" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
