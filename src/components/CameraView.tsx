@@ -1,6 +1,7 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Camera, CameraOff, Loader2 } from 'lucide-react';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
+import { FacePositionGuide } from '@/components/FacePositionGuide';
 import { RegisteredPerson, DetectionResult } from '@/types/face';
 
 interface CameraViewProps {
@@ -14,6 +15,8 @@ export const CameraView = ({ registeredPeople, onDetection, isActive, onToggle }
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [isFaceDetected, setIsFaceDetected] = useState(false);
+  const [isFaceAligned, setIsFaceAligned] = useState(false);
   
   const {
     isModelLoaded,
@@ -36,32 +39,28 @@ export const CameraView = ({ registeredPeople, onDetection, isActive, onToggle }
 
     const markReady = () => {
       if (cancelled) return;
-      // Wait until we have real dimensions; otherwise face-api will struggle / return nothing.
       if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
         setIsVideoReady(true);
-        videoEl.play().catch(() => {
-          // Autoplay can still be blocked in some contexts; detection can still run.
-        });
+        videoEl.play().catch(() => {});
       }
     };
 
     const handleCamera = async () => {
       if (isActive && isModelLoaded) {
         setIsVideoReady(false);
-
-        // Attach listeners BEFORE setting srcObject to avoid missing the event.
         videoEl.addEventListener('loadedmetadata', markReady);
         videoEl.addEventListener('loadeddata', markReady);
         videoEl.addEventListener('canplay', markReady);
 
         const success = await startCamera(videoEl);
         if (success) {
-          // In case events already fired.
           markReady();
         }
       } else {
         stopCamera();
         setIsVideoReady(false);
+        setIsFaceDetected(false);
+        setIsFaceAligned(false);
       }
     };
 
@@ -75,66 +74,48 @@ export const CameraView = ({ registeredPeople, onDetection, isActive, onToggle }
     };
   }, [isActive, isModelLoaded, startCamera, stopCamera]);
 
+  const handleDetection = useCallback((result: DetectionResult) => {
+    if (result.box) {
+      setIsFaceDetected(true);
+      
+      // Check if face is centered (within the oval guide area)
+      const video = videoRef.current;
+      if (video) {
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+        
+        const faceCenterX = result.box.x + result.box.width / 2;
+        const faceCenterY = result.box.y + result.box.height / 2;
+        
+        const centerX = videoWidth / 2;
+        const centerY = videoHeight / 2;
+        
+        // Face is aligned if center is within 20% of video center
+        const toleranceX = videoWidth * 0.2;
+        const toleranceY = videoHeight * 0.2;
+        
+        const isAligned = 
+          Math.abs(faceCenterX - centerX) < toleranceX &&
+          Math.abs(faceCenterY - centerY) < toleranceY;
+        
+        setIsFaceAligned(isAligned);
+      }
+    } else {
+      setIsFaceDetected(false);
+      setIsFaceAligned(false);
+    }
+    
+    onDetection(result);
+  }, [onDetection]);
+
   useEffect(() => {
     if (isVideoReady && canvasRef.current && isActive) {
-      startDetection(registeredPeople, onDetection, canvasRef.current);
+      startDetection(registeredPeople, handleDetection, canvasRef.current);
     }
-  }, [isVideoReady, isActive, registeredPeople, onDetection, startDetection]);
+  }, [isVideoReady, isActive, registeredPeople, handleDetection, startDetection]);
 
   return (
-    <div className="relative w-full h-full bg-secondary/50 rounded-lg overflow-hidden border border-border/50 border-glow">
-      {/* Scanner overlay */}
-      {isActive && isVideoReady && (
-        <div className="absolute inset-0 pointer-events-none z-10">
-          <div className="scanner-line absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-60" />
-          <div className="absolute inset-0 border-2 border-primary/30 rounded-lg" />
-          <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-primary" />
-          <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-primary" />
-          <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-primary" />
-          <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-primary" />
-          
-          {/* Scanning circle indicator */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="relative w-32 h-32">
-              {/* Outer rotating ring */}
-              <svg className="w-full h-full animate-spin" style={{ animationDuration: '3s' }} viewBox="0 0 100 100">
-                <circle 
-                  cx="50" cy="50" r="45" 
-                  fill="none" 
-                  stroke="hsl(var(--primary) / 0.2)" 
-                  strokeWidth="2"
-                />
-                <circle 
-                  cx="50" cy="50" r="45" 
-                  fill="none" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeDasharray="70 210"
-                  className="drop-shadow-[0_0_8px_hsl(var(--primary))]"
-                />
-              </svg>
-              
-              {/* Inner pulsing ring */}
-              <div className="absolute inset-4">
-                <svg className="w-full h-full animate-pulse" viewBox="0 0 100 100">
-                  <circle 
-                    cx="50" cy="50" r="40" 
-                    fill="none" 
-                    stroke="hsl(var(--primary) / 0.4)" 
-                    strokeWidth="1"
-                    strokeDasharray="8 8"
-                  />
-                </svg>
-              </div>
-              
-              {/* Center dot */}
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_12px_hsl(var(--primary))]" />
-            </div>
-          </div>
-        </div>
-      )}
-
+    <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">
       {/* Video feed */}
       <video
         ref={videoRef}
@@ -143,30 +124,39 @@ export const CameraView = ({ registeredPeople, onDetection, isActive, onToggle }
         muted
       />
 
-      {/* Detection canvas overlay */}
+      {/* Face position guide overlay */}
+      {isActive && isVideoReady && (
+        <FacePositionGuide
+          isFaceDetected={isFaceDetected}
+          isFaceAligned={isFaceAligned}
+          isScanning={isActive && isVideoReady}
+        />
+      )}
+
+      {/* Detection canvas overlay (hidden but functional) */}
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 w-full h-full pointer-events-none"
+        className="absolute inset-0 w-full h-full pointer-events-none opacity-0"
       />
 
       {/* Status overlays */}
       {!isActive && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-          <CameraOff className="w-16 h-16 text-muted-foreground" />
-          <p className="text-muted-foreground font-display">Cámara desactivada</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-secondary/50">
+          <CameraOff className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground" />
+          <p className="text-muted-foreground font-display text-sm sm:text-base">Cámara desactivada</p>
         </div>
       )}
 
       {isLoading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background/80">
-          <Loader2 className="w-12 h-12 text-primary animate-spin" />
-          <p className="text-primary font-display text-sm">Cargando modelos...</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background/90">
+          <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 text-primary animate-spin" />
+          <p className="text-primary font-display text-xs sm:text-sm">Cargando modelos...</p>
         </div>
       )}
 
       {error && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-destructive/10">
-          <p className="text-destructive font-display text-sm">{error}</p>
+          <p className="text-destructive font-display text-xs sm:text-sm px-4 text-center">{error}</p>
         </div>
       )}
 
@@ -174,25 +164,25 @@ export const CameraView = ({ registeredPeople, onDetection, isActive, onToggle }
       <button
         onClick={onToggle}
         disabled={isLoading}
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 bg-primary text-primary-foreground rounded-full font-display text-sm uppercase tracking-wider flex items-center gap-2 hover:glow-primary transition-all disabled:opacity-50"
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 sm:px-6 py-2 sm:py-3 bg-primary text-primary-foreground rounded-full font-display text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2 hover:glow-primary transition-all disabled:opacity-50 z-30"
       >
         {isActive ? (
           <>
-            <CameraOff className="w-4 h-4" />
+            <CameraOff className="w-3 h-3 sm:w-4 sm:h-4" />
             Detener
           </>
         ) : (
           <>
-            <Camera className="w-4 h-4" />
+            <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
             Iniciar
           </>
         )}
       </button>
 
       {/* Status indicator */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-background/80 rounded-full border border-border/50">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-background/80 rounded-full border border-border/50 z-30">
         <div className={`w-2 h-2 rounded-full ${isActive && isVideoReady ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`} />
-        <span className="text-xs font-display uppercase tracking-wider">
+        <span className="text-[10px] sm:text-xs font-display uppercase tracking-wider">
           {isActive && isVideoReady ? 'Escaneando' : 'Inactivo'}
         </span>
       </div>
