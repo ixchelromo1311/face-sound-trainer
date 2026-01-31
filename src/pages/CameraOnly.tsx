@@ -35,28 +35,28 @@ const CameraOnly = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       {/* Minimal header */}
-      <header className="flex items-center justify-between p-4 border-b border-border/30">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
-            <Scan className="w-5 h-5 text-primary" />
+      <header className="flex-shrink-0 flex items-center justify-between p-2 sm:p-4 border-b border-border/30">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/20 rounded-lg flex items-center justify-center">
+            <Scan className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
           </div>
-          <h1 className="text-xl font-display font-bold text-foreground">
+          <h1 className="text-lg sm:text-xl font-display font-bold text-foreground">
             FaceGuard
           </h1>
         </div>
 
         <Link to="/admin">
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-            <Settings className="w-5 h-5" />
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground w-8 h-8 sm:w-10 sm:h-10">
+            <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
           </Button>
         </Link>
       </header>
 
       {/* Full screen camera */}
-      <div className="flex-1 p-4 flex flex-col">
-        <div className="flex-1 relative">
+      <div className="flex-1 p-2 sm:p-4 flex flex-col min-h-0">
+        <div className="flex-1 relative min-h-0">
           <CameraView
             registeredPeople={people}
             onDetection={handleDetection}
@@ -64,11 +64,10 @@ const CameraOnly = () => {
             onToggle={() => setIsCameraActive(!isCameraActive)}
           />
 
-
           {/* Detection notification */}
           {lastDetection && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 px-6 py-3 bg-success/20 border border-success/50 rounded-full animate-pulse">
-              <p className="text-success font-display text-lg">
+            <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 px-4 sm:px-6 py-2 sm:py-3 bg-success/20 border border-success/50 rounded-full animate-pulse">
+              <p className="text-success font-display text-sm sm:text-lg">
                 ¡Hola, {lastDetection}!
               </p>
             </div>
@@ -76,17 +75,18 @@ const CameraOnly = () => {
         </div>
 
         {/* Status bar */}
-        <div className="mt-4 flex items-center justify-center gap-4 text-sm text-muted-foreground">
+        <div className="flex-shrink-0 mt-2 sm:mt-4 flex items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
           <span className="font-display">
             {people.length} persona{people.length !== 1 ? 's' : ''} registrada{people.length !== 1 ? 's' : ''}
           </span>
           <span className="w-1 h-1 rounded-full bg-muted-foreground" />
-          <span className={`flex items-center gap-2 ${isCameraActive ? 'text-success' : ''}`}>
+          <span className={`flex items-center gap-1 sm:gap-2 ${isCameraActive ? 'text-success' : ''}`}>
             <span className={`w-2 h-2 rounded-full ${isCameraActive ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`} />
             {isCameraActive ? 'Activo' : 'Inactivo'}
           </span>
         </div>
       </div>
+
       {/* Video player modal */}
       {videoToPlay && (
         <VideoPlayer
