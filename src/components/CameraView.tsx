@@ -92,6 +92,46 @@ export const CameraView = ({ registeredPeople, onDetection, isActive, onToggle }
           <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-primary" />
           <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-primary" />
           <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-primary" />
+          
+          {/* Scanning circle indicator */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="relative w-32 h-32">
+              {/* Outer rotating ring */}
+              <svg className="w-full h-full animate-spin" style={{ animationDuration: '3s' }} viewBox="0 0 100 100">
+                <circle 
+                  cx="50" cy="50" r="45" 
+                  fill="none" 
+                  stroke="hsl(var(--primary) / 0.2)" 
+                  strokeWidth="2"
+                />
+                <circle 
+                  cx="50" cy="50" r="45" 
+                  fill="none" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeDasharray="70 210"
+                  className="drop-shadow-[0_0_8px_hsl(var(--primary))]"
+                />
+              </svg>
+              
+              {/* Inner pulsing ring */}
+              <div className="absolute inset-4">
+                <svg className="w-full h-full animate-pulse" viewBox="0 0 100 100">
+                  <circle 
+                    cx="50" cy="50" r="40" 
+                    fill="none" 
+                    stroke="hsl(var(--primary) / 0.4)" 
+                    strokeWidth="1"
+                    strokeDasharray="8 8"
+                  />
+                </svg>
+              </div>
+              
+              {/* Center dot */}
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_12px_hsl(var(--primary))]" />
+            </div>
+          </div>
         </div>
       )}
 
