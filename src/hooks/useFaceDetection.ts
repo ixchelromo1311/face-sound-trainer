@@ -59,7 +59,13 @@ export const useFaceDetection = () => {
   const startCamera = useCallback(async (video: HTMLVideoElement) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: 640, height: 480 }
+        // Prefer higher resolution when available to improve face detection quality,
+        // while still allowing the browser to pick a supported size.
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       });
       video.srcObject = stream;
       videoRef.current = video;
@@ -118,6 +124,12 @@ export const useFaceDetection = () => {
       clearInterval(detectionIntervalRef.current);
     }
 
+    const detectorOptions = new faceapi.TinyFaceDetectorOptions({
+      // Slightly lower threshold helps in low light / fast motion.
+      scoreThreshold: 0.4,
+      inputSize: 416
+    });
+
     const findBestMatch = (
       detectedDescriptor: Float32Array,
       person: RegisteredPerson
@@ -145,10 +157,12 @@ export const useFaceDetection = () => {
 
     const detectFaces = async () => {
       if (!videoRef.current || !modelsLoaded) return;
+      if (videoRef.current.readyState < 2) return;
+      if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) return;
 
       try {
         const detections = await faceapi
-          .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+          .detectAllFaces(videoRef.current, detectorOptions)
           .withFaceLandmarks()
           .withFaceDescriptors();
 
