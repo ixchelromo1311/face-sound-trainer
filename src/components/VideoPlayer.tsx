@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
 interface VideoPlayerProps {
@@ -9,20 +9,55 @@ interface VideoPlayerProps {
 
 export const VideoPlayer = ({ videoData, personName, onClose }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
+  const [showBlackScreen, setShowBlackScreen] = useState(false);
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.play().catch(console.error);
-    }
+    // 2 second delay before showing video
+    const showTimer = setTimeout(() => {
+      setIsVisible(true);
+      if (videoRef.current) {
+        videoRef.current.play().catch(console.error);
+      }
+    }, 2000);
+
+    return () => clearTimeout(showTimer);
   }, []);
 
   const handleVideoEnd = () => {
-    onClose();
+    // Start fade out animation
+    setIsEnding(true);
+    
+    // After fade out, show black screen
+    setTimeout(() => {
+      setShowBlackScreen(true);
+    }, 500);
+
+    // Close after black screen fades in
+    setTimeout(() => {
+      onClose();
+    }, 1500);
   };
 
   return (
-    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="relative w-full max-w-4xl bg-card border border-border/50 rounded-lg overflow-hidden border-glow animate-scale-in">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-500 ${
+      showBlackScreen 
+        ? 'bg-black' 
+        : isVisible 
+          ? 'bg-background/95 backdrop-blur-sm' 
+          : 'bg-transparent'
+    }`}>
+      {/* Black screen overlay for ending */}
+      {showBlackScreen && (
+        <div className="absolute inset-0 bg-black animate-fade-in" />
+      )}
+
+      <div className={`relative w-full max-w-4xl bg-card border border-border/50 rounded-lg overflow-hidden border-glow transition-all duration-700 ${
+        isVisible && !isEnding
+          ? 'opacity-100 scale-100' 
+          : 'opacity-0 scale-95'
+      }`}>
         {/* Header */}
         <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
           <div className="px-4 py-2 bg-background/80 rounded-full border border-border/50">
