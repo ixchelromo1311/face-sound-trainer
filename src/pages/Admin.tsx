@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Scan, UserPlus, Camera } from 'lucide-react';
+import { Scan, UserPlus, Camera, Cloud, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { CameraView } from '@/components/CameraView';
 import { PersonRegistration } from '@/components/PersonRegistration';
@@ -19,7 +19,7 @@ const Admin = () => {
   const [detections, setDetections] = useState<DetectionResult[]>([]);
   const [totalDetections, setTotalDetections] = useState(0);
 
-  const { people, addPerson, removePerson, updatePerson } = usePersonStorage();
+  const { people, addPerson, removePerson, updatePerson, isLoading, isSyncing, syncToCloud } = usePersonStorage();
 
   const handleDetection = useCallback((result: DetectionResult) => {
     setDetections(prev => [...prev.slice(-50), result]);
@@ -47,6 +47,19 @@ const Admin = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            onClick={syncToCloud}
+            variant="outline"
+            className="font-display"
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Cloud className="w-4 h-4 mr-2" />
+            )}
+            Sincronizar
+          </Button>
           <Link to="/">
             <Button variant="outline" className="font-display">
               <Camera className="w-4 h-4 mr-2" />
