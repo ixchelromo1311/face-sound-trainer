@@ -7,7 +7,7 @@ import { PersonEdit } from '@/components/PersonEdit';
 import { PersonList } from '@/components/PersonList';
 import { DetectionLog } from '@/components/DetectionLog';
 import { StatsPanel } from '@/components/StatsPanel';
-import { usePersonStorage } from '@/hooks/usePersonStorage';
+import { usePersonStorage } from '@/contexts/PersonStorageContext';
 import { DetectionResult, RegisteredPerson } from '@/types/face';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
