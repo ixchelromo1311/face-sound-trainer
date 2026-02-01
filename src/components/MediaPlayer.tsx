@@ -43,9 +43,35 @@ export const MediaPlayer = ({ videoUrl, soundUrl, personName, onClose }: MediaPl
 
   useEffect(() => {
     if (videoUrl && videoRef.current) {
-      videoRef.current.play().catch(console.error);
+      const video = videoRef.current;
+      video.muted = false;
+      video.volume = 1.0;
+      
+      // Try to play with sound
+      video.play().catch(err => {
+        console.error('Video play failed, trying muted:', err);
+        // If autoplay fails, try muted first then unmute
+        video.muted = true;
+        video.play().then(() => {
+          // Unmute after play starts
+          setTimeout(() => {
+            video.muted = false;
+          }, 100);
+        }).catch(console.error);
+      });
     }
-  }, [videoUrl]);
+    
+    // Also play audio if both video and audio are present
+    if (videoUrl && soundUrl) {
+      const audio = new Audio(soundUrl);
+      audio.volume = 1.0;
+      audioRef.current = audio as unknown as HTMLAudioElement;
+      
+      audio.play().catch(err => {
+        console.log('Separate audio play failed (expected with video):', err);
+      });
+    }
+  }, [videoUrl, soundUrl]);
 
   const handleClose = () => {
     setIsVisible(false);
