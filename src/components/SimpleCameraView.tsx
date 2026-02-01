@@ -14,9 +14,10 @@ interface SimpleCameraViewProps {
   isActive: boolean;
   onToggle: () => void;
   onPlayMedia: () => void;
+  isMediaPlaying?: boolean;
 }
 
-export const SimpleCameraView = ({ media, isActive, onToggle, onPlayMedia }: SimpleCameraViewProps) => {
+export const SimpleCameraView = ({ media, isActive, onToggle, onPlayMedia, isMediaPlaying }: SimpleCameraViewProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [isFaceDetected, setIsFaceDetected] = useState(false);
@@ -151,12 +152,15 @@ export const SimpleCameraView = ({ media, isActive, onToggle, onPlayMedia }: Sim
     }
   }, [isVideoReady, isActive, media, handleFaceDetected, noopPlayMedia, startDetection]);
 
-  // Reset playing state when media playback ends (called externally)
+  // Reset playing state when media stops playing
   useEffect(() => {
-    return () => {
+    if (!isMediaPlaying) {
       resetPlayingState();
-    };
-  }, [resetPlayingState]);
+      // Reset progress so next detection can fill again
+      setAlignProgress(0);
+      alignStartTimeRef.current = null;
+    }
+  }, [isMediaPlaying, resetPlayingState]);
 
   return (
     <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">
