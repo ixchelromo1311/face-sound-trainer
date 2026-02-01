@@ -30,29 +30,17 @@ export const FacePositionGuide = ({
     'Inclina la cabeza hacia abajo',
   ];
   
-  // In capture mode, use alignProgress to fill segments
+  // Use alignProgress to fill segments progressively
   useEffect(() => {
-    if (captureMode && isFaceAligned) {
+    if (isFaceAligned && isScanning && alignProgress > 0) {
+      // Fill segments based on alignProgress (0-100)
       const filledCount = Math.floor((alignProgress / 100) * 24);
       setSegments(prev => prev.map((_, i) => i < filledCount));
-    } else if (isFaceAligned && isScanning && !captureMode) {
-      const interval = setInterval(() => {
-        setSegments(prev => {
-          const nextFalseIndex = prev.findIndex(s => !s);
-          if (nextFalseIndex === -1) {
-            clearInterval(interval);
-            return prev;
-          }
-          const newSegments = [...prev];
-          newSegments[nextFalseIndex] = true;
-          return newSegments;
-        });
-      }, 80);
-      return () => clearInterval(interval);
-    } else {
+    } else if (!isFaceAligned || !isScanning) {
+      // Reset when not aligned or not scanning
       setSegments(Array(24).fill(false));
     }
-  }, [isFaceAligned, isScanning, captureMode, alignProgress]);
+  }, [isFaceAligned, isScanning, alignProgress]);
 
   const getStatusColor = () => {
     if (isFaceAligned) return 'hsl(var(--success))';
