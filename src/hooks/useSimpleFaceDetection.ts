@@ -90,7 +90,7 @@ export const useSimpleFaceDetection = () => {
 
   const startDetection = useCallback((
     media: MediaData | null,
-    onFaceDetected: (detected: boolean) => void,
+    onFaceDetected: (detected: boolean, box?: { x: number; y: number; width: number; height: number }) => void,
     onPlayMedia: () => void
   ) => {
     if (detectionIntervalRef.current) {
@@ -110,19 +110,28 @@ export const useSimpleFaceDetection = () => {
       try {
         const detection = await faceapi.detectSingleFace(videoRef.current, detectorOptions);
         
-        const faceDetected = !!detection;
-        onFaceDetected(faceDetected);
+        if (detection) {
+          const box = detection.box;
+          onFaceDetected(true, { 
+            x: box.x, 
+            y: box.y, 
+            width: box.width, 
+            height: box.height 
+          });
 
-        // Play media if face detected, has media, cooldown passed, and not currently playing
-        if (faceDetected && media && !isPlayingRef.current) {
-          const now = Date.now();
-          const cooldown = 30000; // 30 seconds cooldown
-          
-          if (now - lastPlayedRef.current > cooldown) {
-            lastPlayedRef.current = now;
-            isPlayingRef.current = true;
-            onPlayMedia();
+          // Play media if face detected, has media, cooldown passed, and not currently playing
+          if (media && !isPlayingRef.current) {
+            const now = Date.now();
+            const cooldown = 30000; // 30 seconds cooldown
+            
+            if (now - lastPlayedRef.current > cooldown) {
+              lastPlayedRef.current = now;
+              isPlayingRef.current = true;
+              onPlayMedia();
+            }
           }
+        } else {
+          onFaceDetected(false);
         }
       } catch (err) {
         console.error('Detection error:', err);
