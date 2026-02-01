@@ -79,7 +79,10 @@ export const MediaPlayer = ({ videoUrl, soundUrl, personName, onClose }: MediaPl
   };
 
   const handleVideoEnded = () => {
-    handleClose();
+    // Pause on last frame instead of closing
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
   };
 
   const handleVideoError = () => {
