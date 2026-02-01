@@ -128,12 +128,6 @@ export const MediaPlayer = ({ videoUrl, soundUrl, personName, onClose }: MediaPl
           onClick={handleClose}
         />
         
-        {/* Name overlay */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 bg-black/50 rounded-full">
-          <p className="text-white font-display text-xl">
-            ¡Hola, {personName}!
-          </p>
-        </div>
       </div>
     );
   }
