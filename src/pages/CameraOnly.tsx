@@ -86,6 +86,7 @@ const CameraOnly = () => {
             isActive={isCameraActive}
             onToggle={() => setIsCameraActive(!isCameraActive)}
             onPlayMedia={handlePlayMedia}
+            isMediaPlaying={isPlayingMedia}
           />
         </div>
 
