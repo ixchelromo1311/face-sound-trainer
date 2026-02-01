@@ -21,6 +21,9 @@ export const SimpleCameraView = ({ media, isActive, onToggle, onPlayMedia }: Sim
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [isFaceDetected, setIsFaceDetected] = useState(false);
   const [isFaceAligned, setIsFaceAligned] = useState(false);
+  const [alignProgress, setAlignProgress] = useState(0);
+  const alignStartTimeRef = useRef<number | null>(null);
+  const progressIntervalRef = useRef<number | null>(null);
   
   const {
     isModelLoaded,
@@ -104,15 +107,49 @@ export const SimpleCameraView = ({ media, isActive, onToggle, onPlayMedia }: Sim
     }
   }, []);
 
-  const handlePlayMedia = useCallback(() => {
-    onPlayMedia();
-  }, [onPlayMedia]);
+  // Progress tracking - fill oval over 2 seconds when aligned
+  useEffect(() => {
+    if (isFaceAligned && isVideoReady && isActive) {
+      if (!alignStartTimeRef.current) {
+        alignStartTimeRef.current = Date.now();
+      }
+      
+      progressIntervalRef.current = window.setInterval(() => {
+        const elapsed = Date.now() - (alignStartTimeRef.current || Date.now());
+        const progress = Math.min((elapsed / 2000) * 100, 100); // 2 seconds to fill
+        setAlignProgress(progress);
+        
+        if (progress >= 100) {
+          clearInterval(progressIntervalRef.current!);
+          progressIntervalRef.current = null;
+          onPlayMedia();
+        }
+      }, 50);
+      
+      return () => {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+        }
+      };
+    } else {
+      // Reset when not aligned
+      alignStartTimeRef.current = null;
+      setAlignProgress(0);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    }
+  }, [isFaceAligned, isVideoReady, isActive, onPlayMedia]);
 
+  // Start detection without auto-play (we handle it via progress)
+  const noopPlayMedia = useCallback(() => {}, []);
+  
   useEffect(() => {
     if (isVideoReady && isActive) {
-      startDetection(media, handleFaceDetected, handlePlayMedia);
+      startDetection(media, handleFaceDetected, noopPlayMedia);
     }
-  }, [isVideoReady, isActive, media, handleFaceDetected, handlePlayMedia, startDetection]);
+  }, [isVideoReady, isActive, media, handleFaceDetected, noopPlayMedia, startDetection]);
 
   // Reset playing state when media playback ends (called externally)
   useEffect(() => {
@@ -137,6 +174,7 @@ export const SimpleCameraView = ({ media, isActive, onToggle, onPlayMedia }: Sim
           isFaceDetected={isFaceDetected}
           isFaceAligned={isFaceAligned}
           isScanning={isActive && isVideoReady}
+          alignProgress={alignProgress}
         />
       )}
 
