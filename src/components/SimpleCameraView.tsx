@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Camera, CameraOff, Loader2 } from 'lucide-react';
 import { useSimpleFaceDetection } from '@/hooks/useSimpleFaceDetection';
+import { FacePositionGuide } from '@/components/FacePositionGuide';
 
 interface MediaData {
   soundUrl: string | null;
@@ -19,6 +20,7 @@ export const SimpleCameraView = ({ media, isActive, onToggle, onPlayMedia }: Sim
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [isFaceDetected, setIsFaceDetected] = useState(false);
+  const [isFaceAligned, setIsFaceAligned] = useState(false);
   
   const {
     isModelLoaded,
@@ -74,8 +76,32 @@ export const SimpleCameraView = ({ media, isActive, onToggle, onPlayMedia }: Sim
     };
   }, [isActive, isModelLoaded, startCamera, stopCamera]);
 
-  const handleFaceDetected = useCallback((detected: boolean) => {
+  const handleFaceDetected = useCallback((detected: boolean, box?: { x: number; y: number; width: number; height: number }) => {
     setIsFaceDetected(detected);
+    
+    // Check if face is centered (within the oval guide area)
+    if (detected && box && videoRef.current) {
+      const videoWidth = videoRef.current.videoWidth;
+      const videoHeight = videoRef.current.videoHeight;
+      
+      const faceCenterX = box.x + box.width / 2;
+      const faceCenterY = box.y + box.height / 2;
+      
+      const centerX = videoWidth / 2;
+      const centerY = videoHeight / 2;
+      
+      // Face is aligned if center is within 20% of video center
+      const toleranceX = videoWidth * 0.2;
+      const toleranceY = videoHeight * 0.2;
+      
+      const isAligned = 
+        Math.abs(faceCenterX - centerX) < toleranceX &&
+        Math.abs(faceCenterY - centerY) < toleranceY;
+      
+      setIsFaceAligned(isAligned);
+    } else {
+      setIsFaceAligned(false);
+    }
   }, []);
 
   const handlePlayMedia = useCallback(() => {
@@ -105,13 +131,13 @@ export const SimpleCameraView = ({ media, isActive, onToggle, onPlayMedia }: Sim
         muted
       />
 
-      {/* Face detected indicator */}
-      {isActive && isVideoReady && isFaceDetected && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 px-4 py-2 bg-success/90 rounded-full z-30">
-          <span className="text-white font-display text-sm uppercase tracking-wider">
-            Rostro detectado
-          </span>
-        </div>
+      {/* Face position guide overlay - estilo Face ID */}
+      {isActive && isVideoReady && (
+        <FacePositionGuide
+          isFaceDetected={isFaceDetected}
+          isFaceAligned={isFaceAligned}
+          isScanning={isActive && isVideoReady}
+        />
       )}
 
       {/* Status overlays */}
