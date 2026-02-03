@@ -6,6 +6,7 @@ import { FacePositionGuide } from '@/components/FacePositionGuide';
 interface MediaData {
   soundUrl: string | null;
   videoUrl: string | null;
+  idleVideoUrl: string | null;
   name: string;
 }
 
@@ -19,6 +20,7 @@ interface SimpleCameraViewProps {
 
 export const SimpleCameraView = ({ media, isActive, onToggle, onPlayMedia, isMediaPlaying }: SimpleCameraViewProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const idleVideoRef = useRef<HTMLVideoElement>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [isFaceDetected, setIsFaceDetected] = useState(false);
   const [isFaceAligned, setIsFaceAligned] = useState(false);
@@ -183,11 +185,24 @@ export const SimpleCameraView = ({ media, isActive, onToggle, onPlayMedia, isMed
       )}
 
       {/* Status overlays */}
-      {!isActive && (
+      {!isActive && !media?.idleVideoUrl && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-secondary/50">
           <CameraOff className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground" />
           <p className="text-muted-foreground font-display text-sm sm:text-base">Cámara desactivada</p>
         </div>
+      )}
+
+      {/* Idle video when camera is off */}
+      {!isActive && media?.idleVideoUrl && (
+        <video
+          ref={idleVideoRef}
+          src={media.idleVideoUrl}
+          className="absolute inset-0 w-full h-full object-cover"
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
       )}
 
       {isLoading && (

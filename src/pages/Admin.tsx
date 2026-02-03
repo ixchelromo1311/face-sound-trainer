@@ -12,6 +12,7 @@ interface MediaConfig {
   name: string;
   videoUrl: string | null;
   soundUrl: string | null;
+  idleVideoUrl: string | null;
 }
 
 const Admin = () => {
@@ -21,8 +22,10 @@ const Admin = () => {
   const [name, setName] = useState('Saludo General');
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [idleVideoFile, setIdleVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [audioPreview, setAudioPreview] = useState<string | null>(null);
+  const [idleVideoPreview, setIdleVideoPreview] = useState<string | null>(null);
 
   // Load existing media config
   useEffect(() => {
@@ -43,11 +46,13 @@ const Admin = () => {
             id: data.id,
             name: data.name,
             videoUrl: data.video_url,
-            soundUrl: data.sound_url
+            soundUrl: data.sound_url,
+            idleVideoUrl: data.idle_video_url
           });
           setName(data.name);
           setVideoPreview(data.video_url);
           setAudioPreview(data.sound_url);
+          setIdleVideoPreview(data.idle_video_url);
         }
       } catch (err) {
         console.error('Error:', err);
@@ -85,6 +90,7 @@ const Admin = () => {
     try {
       let videoUrl = mediaConfig?.videoUrl || null;
       let soundUrl = mediaConfig?.soundUrl || null;
+      let idleVideoUrl = mediaConfig?.idleVideoUrl || null;
 
       // Upload new video if selected
       if (videoFile) {
@@ -96,6 +102,11 @@ const Admin = () => {
         soundUrl = await uploadFile(audioFile, 'audio');
       }
 
+      // Upload new idle video if selected
+      if (idleVideoFile) {
+        idleVideoUrl = await uploadFile(idleVideoFile, 'idle-videos');
+      }
+
       if (mediaConfig?.id) {
         // Update existing
         const { error } = await supabase
@@ -103,7 +114,8 @@ const Admin = () => {
           .update({
             name,
             video_url: videoUrl,
-            sound_url: soundUrl
+            sound_url: soundUrl,
+            idle_video_url: idleVideoUrl
           })
           .eq('id', mediaConfig.id);
 
@@ -116,6 +128,7 @@ const Admin = () => {
             name,
             video_url: videoUrl,
             sound_url: soundUrl,
+            idle_video_url: idleVideoUrl,
             descriptors: []
           })
           .select()
@@ -127,14 +140,17 @@ const Admin = () => {
           id: data.id,
           name: data.name,
           videoUrl: data.video_url,
-          soundUrl: data.sound_url
+          soundUrl: data.sound_url,
+          idleVideoUrl: data.idle_video_url
         });
       }
 
       setVideoPreview(videoUrl);
       setAudioPreview(soundUrl);
+      setIdleVideoPreview(idleVideoUrl);
       setVideoFile(null);
       setAudioFile(null);
+      setIdleVideoFile(null);
 
       toast.success('Configuración guardada correctamente');
     } catch (err) {
@@ -145,13 +161,15 @@ const Admin = () => {
     }
   };
 
-  const handleDeleteMedia = async (type: 'video' | 'audio') => {
+  const handleDeleteMedia = async (type: 'video' | 'audio' | 'idle') => {
     if (!mediaConfig?.id) return;
 
     try {
       const updates = type === 'video' 
         ? { video_url: null } 
-        : { sound_url: null };
+        : type === 'audio'
+        ? { sound_url: null }
+        : { idle_video_url: null };
 
       const { error } = await supabase
         .from('registered_people')
@@ -163,12 +181,15 @@ const Admin = () => {
       if (type === 'video') {
         setVideoPreview(null);
         setMediaConfig(prev => prev ? { ...prev, videoUrl: null } : null);
-      } else {
+      } else if (type === 'audio') {
         setAudioPreview(null);
         setMediaConfig(prev => prev ? { ...prev, soundUrl: null } : null);
+      } else {
+        setIdleVideoPreview(null);
+        setMediaConfig(prev => prev ? { ...prev, idleVideoUrl: null } : null);
       }
 
-      toast.success(`${type === 'video' ? 'Video' : 'Audio'} eliminado`);
+      toast.success(`${type === 'video' ? 'Video' : type === 'audio' ? 'Audio' : 'Video de fondo'} eliminado`);
     } catch (err) {
       console.error('Error deleting:', err);
       toast.error('Error al eliminar');
@@ -188,6 +209,14 @@ const Admin = () => {
     if (file) {
       setAudioFile(file);
       setAudioPreview(URL.createObjectURL(file));
+    }
+  }, []);
+
+  const handleIdleVideoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIdleVideoFile(file);
+      setIdleVideoPreview(URL.createObjectURL(file));
     }
   }, []);
 
@@ -351,10 +380,61 @@ const Admin = () => {
             />
           </div>
 
+          {/* Idle video upload */}
+          <div className="space-y-4">
+            <Label className="font-display text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <Video className="w-4 h-4" />
+              Video de Fondo (cuando la cámara está desactivada)
+            </Label>
+            
+            {idleVideoPreview ? (
+              <div className="space-y-3">
+                <video
+                  src={idleVideoPreview}
+                  controls
+                  className="w-full max-h-64 rounded-lg bg-black"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById('idle-video-input')?.click()}
+                    className="flex-1"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Cambiar video de fondo
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteMedia('idle')}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <label
+                htmlFor="idle-video-input"
+                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border/50 rounded-lg cursor-pointer hover:bg-secondary/30 transition-colors"
+              >
+                <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                <span className="text-sm text-muted-foreground">Click para subir video de fondo</span>
+              </label>
+            )}
+            <input
+              id="idle-video-input"
+              type="file"
+              accept="video/mp4,video/webm"
+              onChange={handleIdleVideoChange}
+              className="hidden"
+            />
+          </div>
+
           {/* Save button */}
           <Button
             onClick={handleSave}
-            disabled={isSaving || (!name && !videoFile && !audioFile)}
+            disabled={isSaving || (!name && !videoFile && !audioFile && !idleVideoFile)}
             className="w-full bg-primary text-primary-foreground hover:glow-primary font-display"
           >
             {isSaving ? (

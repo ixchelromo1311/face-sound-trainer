@@ -19,6 +19,7 @@ export type Database = {
           created_at: string
           descriptors: Json
           id: string
+          idle_video_url: string | null
           image_url: string | null
           name: string
           sound_url: string | null
@@ -29,6 +30,7 @@ export type Database = {
           created_at?: string
           descriptors?: Json
           id?: string
+          idle_video_url?: string | null
           image_url?: string | null
           name: string
           sound_url?: string | null
@@ -39,6 +41,7 @@ export type Database = {
           created_at?: string
           descriptors?: Json
           id?: string
+          idle_video_url?: string | null
           image_url?: string | null
           name?: string
           sound_url?: string | null
