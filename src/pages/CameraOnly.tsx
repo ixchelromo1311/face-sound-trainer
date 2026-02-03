@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface MediaData {
   soundUrl: string | null;
   videoUrl: string | null;
+  idleVideoUrl: string | null;
   name: string;
 }
 
@@ -24,7 +25,7 @@ const CameraOnly = () => {
       try {
         const { data, error } = await supabase
           .from('registered_people')
-          .select('name, sound_url, video_url')
+          .select('name, sound_url, video_url, idle_video_url')
           .limit(1)
           .single();
 
@@ -34,7 +35,8 @@ const CameraOnly = () => {
           setMedia({
             name: data.name,
             soundUrl: data.sound_url,
-            videoUrl: data.video_url
+            videoUrl: data.video_url,
+            idleVideoUrl: data.idle_video_url
           });
           console.log('Media loaded:', data);
         }
