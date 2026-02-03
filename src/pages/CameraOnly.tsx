@@ -61,15 +61,7 @@ const CameraOnly = () => {
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       {/* Minimal header */}
-      <header className="flex-shrink-0 flex items-center justify-between p-2 sm:p-4 border-b border-border/30">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/20 rounded-lg flex items-center justify-center">
-            <Scan className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-          </div>
-          <h1 className="text-lg sm:text-xl font-display font-bold text-foreground">
-            FaceGuard
-          </h1>
-        </div>
+      <header className="flex-shrink-0 flex items-center justify-end p-2 sm:p-4 border-b border-border/30">
 
         <Link to="/admin">
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground w-8 h-8 sm:w-10 sm:h-10">
